@@ -1,9 +1,11 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
 import android.content.Context;
+import android.graphics.Point;
 import android.os.Handler;
 import android.os.Message;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -26,6 +28,22 @@ public class GameCanvas extends SurfaceView implements SurfaceHolder.Callback {
 	}
 	
 	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		switch(event.getAction() & MotionEvent.ACTION_MASK) {
+		case MotionEvent.ACTION_DOWN:
+			thread.startShield(new Point((int)event.getX(), (int)event.getY()));	
+			break;
+		case MotionEvent.ACTION_MOVE:
+			thread.updateShield(new Point((int)event.getX(), (int)event.getY()));
+			break;
+		case MotionEvent.ACTION_UP:
+			thread.finishShield(new Point((int)event.getX(), (int)event.getY()));
+			break;			
+		}
+		return true;
+	}
+
+	@Override
 	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
        thread.setSurfaceSize(width, height);
 	}
@@ -34,7 +52,6 @@ public class GameCanvas extends SurfaceView implements SurfaceHolder.Callback {
 	public void surfaceCreated(SurfaceHolder holder) {
         thread.setRunning(true);
         thread.start();
-		
 	}
 
 	@Override
