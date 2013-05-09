@@ -17,7 +17,8 @@ public class GameThread extends Thread {
 	
 	// constants
 	private float HEALTH_BAR_WIDTH = 0.8f;
-	private float HEALTH_BAR_HEIGHT = 10.0f;
+	private float HEALTH_BAR_HEIGHT = 5.0f;
+	private float SHIP_SCALE = 0.5f;
 	
 	private int shields = 100, health = 100;
 	
@@ -52,24 +53,33 @@ public class GameThread extends Thread {
     }
     
     private void updateGame() {
-    	
+    	if(isCreateAsteroidTime()) {
+    		createAsteroid();
+    	}
     }
 
     private void updateDisplay(Canvas canvas) {
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
         
         canvas.save();
-        canvas.scale(0.5f, 0.5f, canvasWidth / 2, canvasHeight); // shrink the ship down a little
+        canvas.scale(SHIP_SCALE, SHIP_SCALE, canvasWidth / 2, canvasHeight);
         ship.setBounds((canvasWidth / 2) - (shipWidth / 2), canvasHeight - (shipHeight + 20), 
         		(canvasWidth / 2) + (shipWidth / 2), canvasHeight - 20);
         ship.draw(canvas);
         canvas.restore();
         
+        int asteroidWidth = asteroidDraw.getIntrinsicWidth();
+        int asteroidHeight = asteroidDraw.getIntrinsicHeight();
+        for(Asteroid a : asteroids) {
+        	asteroidDraw.setBounds(a.getPosX() - (asteroidWidth / 2), a.getPosY() - (asteroidHeight / 2),
+        			a.getPosX() + (asteroidWidth / 2), a.getPosY() + (asteroidHeight / 2));
+        	asteroidDraw.draw(canvas);
+        
         Paint p = new Paint();
         
         // display the time
         p.setColor(Color.WHITE);
-        String timeDisplay = String.format("Time: %06d", time);
+        String timeDisplay = String.format("Time: %d", time);
         float textWidth = p.measureText(timeDisplay);
         canvas.drawText(timeDisplay, canvasWidth - textWidth - 20.0f, 20.0f, p);
         
@@ -89,16 +99,16 @@ public class GameThread extends Thread {
         else p.setColor(Color.RED);
         canvas.drawRect(healthBarMargin, canvasHeight - (20.0f + HEALTH_BAR_HEIGHT),
         		(canvasWidth - healthBarMargin) * (health / 100.0f), canvasHeight - 20.0f, p);
-        
-        
-        
-        int asteroidWidth = asteroidDraw.getIntrinsicWidth();
-        int asteroidHeight = asteroidDraw.getIntrinsicHeight();
-        for(Asteroid a : asteroids) {
-        	asteroidDraw.setBounds(a.getPosX() - (asteroidWidth / 2), a.getPosY() - (asteroidHeight / 2),
-        			a.getPosX() + (asteroidWidth / 2), a.getPosY() + (asteroidHeight / 2));
-        	asteroidDraw.draw(canvas);
         }
+    }
+    
+    public boolean isCreateAsteroidTime() {
+    	if(frame != 0) return false;
+    	
+    	// TODO: Some more complicated function can go here
+    	if(time % 10 == 0) return true;
+    	
+    	return false;
     }
     
     public void createAsteroid() {
