@@ -153,13 +153,16 @@ public class GameThread extends Thread {
     private void drawGame(Canvas canvas) {
         Paint p = new Paint();
         
+        // space
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
         
+        // ship
         canvas.save();
         ship.setBounds(shipLeft, shipTop, shipRight, shipBottom);
         ship.draw(canvas);
         canvas.restore();
         
+        // asteroids
         int asteroidWidth = asteroidDraw.getIntrinsicWidth();
         int asteroidHeight = asteroidDraw.getIntrinsicHeight();
         for(Asteroid a : asteroids) {
@@ -171,7 +174,7 @@ public class GameThread extends Thread {
         	asteroidDraw.draw(canvas);
         	canvas.restore();
 
-        	/*// Border on meteors
+        	/*// hit box on meteors
         	p.setColor(Color.RED);
         	p.setAlpha(50);
         	canvas.drawCircle((float)a.getPos().x, (float)a.getPos().y, (float)a.getRadius(), p);
@@ -179,10 +182,11 @@ public class GameThread extends Thread {
         	*/
         }
         
-        // display the shields
+        // shields
         p.setColor(SHIELD_COLOR);
         p.setStrokeWidth(2.0f);
         for(Shield s : shields) {
+        	p.setAlpha((int)(((float)s.getHealth() / Shield.MAX_HEALTH) * 255));
         	canvas.drawLine(s.getStart().x, s.getStart().y, s.getEnd().x, s.getEnd().y, p);
         }
         if(isDrawingShield && currentShield != null) {
@@ -193,14 +197,14 @@ public class GameThread extends Thread {
             p.setAlpha(255);
         }
         
-        // display the time
+        // time
         p.setColor(Color.WHITE);
         p.setTextSize(timeFontSize);
         String timeDisplay = context.getResources().getString(R.string.time_label) + ": " + time;
         canvas.drawText(timeDisplay, canvasWidth - p.measureText(timeDisplay) - 20.0f,
         		timeFontSize, p);
 
-        // display your energy
+        // energy
         int currentEnergy = energy - (isDrawingShield && currentShield != null ? 
         		currentShield.getCost(canvasWidth) : 0);
         if(ENERGY_BAR) {
@@ -214,7 +218,7 @@ public class GameThread extends Thread {
 	        canvas.drawText(energyText, 40.0f, canvasHeight - 40.0f, p);
         }
         
-        // display the ship health
+        // ship health
         int c = Color.GREEN;
         if(health < 25) c = Color.RED;
         else if (health < 75) c = Color.YELLOW;
@@ -242,19 +246,16 @@ public class GameThread extends Thread {
     }
     
     public boolean isCreateAsteroidTime() {
-    	if(frame % 12 != 0) return false;
-    	
-    	// TODO: Some more complicated function can go here
-    	if(time > 0) return true;
-    	
-    	return false;
+    	if(frame % Math.max(FRAMES_PER_SECOND - time*2, 1) != 0 || time < 1) return false;
+    	return true;
     }
     
     public void createAsteroid() {
     	double radius = Math.min(0.3 + Math.random()*Asteroid.MAX_RADIUS, Asteroid.MAX_RADIUS);
     	int startX = (int)(Math.random() * (canvasWidth + 1));
     	int startY = (int)-radius;
-    	double deltaX = startX - (canvasWidth / 2);
+    	int endX = (int)(Math.random() * (canvasWidth + 1));
+    	double deltaX = startX - endX;
     	double deltaY = startY - canvasHeight;
     	
     	Asteroid a = new Asteroid(startX, startY);
@@ -267,6 +268,7 @@ public class GameThread extends Thread {
     public void moveAsteroids() {
     	ArrayList<Asteroid> deleteAsteroid = new ArrayList<Asteroid>();
     	for(Asteroid a : asteroids) {
+    		if(deleteAsteroid.contains(a)) continue;
     		
     		// new location
     		double speed = a.getSpeed();
@@ -291,14 +293,32 @@ public class GameThread extends Thread {
     			continue;
     		}
     		
+    		// check if hit asteroid
+    		for(Asteroid a2 : asteroids) {
+    			if(a != a2 && a.collidingWithAsteroid(a2)) {
+    				a.setHealth(a.getHealth() - a2.getDamage());
+    				a2.setHealth(a2.getHealth() - a.getDamage());
+    				
+    				if(a2.getHealth() <= 0) deleteAsteroid.add(a2);
+    				if(a.getHealth() <= 0) deleteAsteroid.add(a);
+    				else {
+    					// TODO: Calculate the new asteroid position
+    				}
+    			}
+    		}
+    		
     		// check if hit shield
     		ArrayList<Shield> deleteShield = new ArrayList<Shield>();
     		for(Shield s : shields) {
     			if(a.collidingWithLine(s.getStart(), s.getEnd())) {
-    				deleteAsteroid.add(a);
     				s.setHealth(s.getHealth() - a.getDamage());
     				if(s.getHealth() < 0) deleteShield.add(s);
-    				continue;
+    				
+    				a.setHealth(a.getHealth() - s.getHealth());
+    				if(a.getHealth() <= 0) deleteAsteroid.add(a);
+    				else {
+        				// TODO: Add calcuation for reflecting asteroid
+    				}
     			}
     		}
     		shields.removeAll(deleteShield);

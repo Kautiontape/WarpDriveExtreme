@@ -3,10 +3,10 @@ package edu.umbc.teamawesome.warpdriveextreme;
 import android.graphics.Point;
 
 public class Shield {
-	public static int MAX_HEALTH = 20;
+	public static final int MAX_HEALTH = 20;
 	
 	private Point start = new Point(0, 0), end = new Point(0, 0);
-	private float health;
+	private int health;
 	
 	public Shield() {}
 	public Shield(int startX, int startY) {
@@ -45,10 +45,10 @@ public class Shield {
 	public Point getEnd() {
 		return end;
 	}
-	public float getHealth() {
+	public int getHealth() {
 		return health;
 	}
-	public void setHealth(float health) {
+	public void setHealth(int health) {
 		this.health = health;
 	}
 }

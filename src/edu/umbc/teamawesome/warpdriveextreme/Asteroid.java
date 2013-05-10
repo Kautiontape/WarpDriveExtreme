@@ -3,11 +3,13 @@ package edu.umbc.teamawesome.warpdriveextreme;
 import android.graphics.Point;
 
 public class Asteroid {
-	public static int MAX_RADIUS = 65;
-	public static int MAX_DAMAGE = 20;
+	public static final int MAX_RADIUS = 65;
+	public static final int MAX_DAMAGE = 20;
+	public static final int MAX_HEALTH = 20; 
 
 	private Point pos = new Point(0, 0), initPos = new Point(0, 0);
 	private double heading = 0.0, speed = 0.0, radius = 0.0;
+	private int health = 0;
 	
 	public Asteroid() { this(new Point(0, 0)); }
 	public Asteroid(int posX, int posY) { this(new Point(posX, posY)); }
@@ -34,7 +36,19 @@ public class Asteroid {
 		return false;
 	}
 	
-	// accessors / mutators
+	public boolean collidingWithAsteroid(Asteroid o) {
+		return (Math.sqrt(Math.pow(o.pos.x - this.pos.x, 2) + Math.pow(o.pos.y - this.pos.y, 2)) <= this.radius + o.radius);
+	}
+	
+	// accessors / mutators	
+	public int getHealth() {
+		return health;
+	}
+	
+	public void setHealth(int h) {
+		health = h;
+	}
+	
 	public Point getPos() {
 		return pos;
 	}
