@@ -1,7 +1,6 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -10,24 +9,26 @@ import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Path;
 import android.graphics.Point;
-import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
-import android.util.Log;
 import android.view.SurfaceHolder;
 
 public class GameThread extends Thread {
 	
 	// constants
-	private float SHIP_SCALE = 0.5f;
-	private int ENERGY_PER_SECOND = 6;
-	private int FRAMES_PER_SECOND = 50;
-	private boolean ENERGY_BAR = true;
-	private int SHIELD_COLOR = Color.CYAN;
+	private static final float SHIP_SCALE = 0.5f;
+	private static final int ENERGY_PER_SECOND = 6;
+	private static final int FRAMES_PER_SECOND = 50;
+	private static final boolean ENERGY_BAR = true;
+	private static final int SHIELD_COLOR = Color.CYAN;
+	
+	private static final int STATE_START = 0;
+	private static final int STATE_PLAYING = 1;
+	private static final int STATE_GAMEOVER = 2;
 	
 	// game status
+	private int gameState = STATE_START;
 	private int energy = 100, health = 100;
 	private boolean isDrawingShield = false;
 	private Shield currentShield = null;
@@ -44,8 +45,8 @@ public class GameThread extends Thread {
 
 	// overhead
     private SurfaceHolder holder;
-    private Context context;
-    private Handler handler;
+	private Context context;
+	private Handler handler;
 	private boolean running = false;
 	
 	// images
@@ -54,6 +55,8 @@ public class GameThread extends Thread {
     private Drawable asteroidDraw;
     int shipWidth = 1, shipHeight = 1;
     int timeFontSize = 12; int energyFontSize = 26;
+    int gameoverFontSize = 32; int scoreFontSize = 28;
+    int titleFontSize = 38;
     
     // game bars
     GameBar healthBar = new GameBar(0, Color.GREEN);
@@ -73,9 +76,17 @@ public class GameThread extends Thread {
         asteroidDraw = res.getDrawable(R.drawable.asteroid);
         timeFontSize = res.getDimensionPixelSize(R.dimen.timeFontSize);
         energyFontSize = res.getDimensionPixelSize(R.dimen.energyFontSize);
+        gameoverFontSize = res.getDimensionPixelSize(R.dimen.gameoverFontSize);
+        scoreFontSize = res.getDimensionPixelSize(R.dimen.scoreFontSize);
+        titleFontSize = res.getDimensionPixelSize(R.dimen.titleFontSize);
     }
     
     private void updateGame() {
+    	if(health <= 0) {
+    		gameState = STATE_GAMEOVER;
+    		return;
+    	}
+    	
     	if(isCreateAsteroidTime()) {
     		createAsteroid();
     	}
@@ -86,6 +97,60 @@ public class GameThread extends Thread {
 
     private void updateDisplay(Canvas canvas) {
     	if(canvas == null) return;
+        
+        canvas.drawBitmap(spaceBitmap, 0, 0, null);
+    	if(gameState == STATE_GAMEOVER) {
+    		drawGameOver(canvas);
+    	} else if(gameState == STATE_START){
+    		drawTitle(canvas);
+    	} else {
+    		drawGame(canvas);
+    	}
+    }
+    
+    private void startGame() {
+    	frame = 0;
+    	time = 0;
+    	health = 100;
+    	energy = 100;
+    	isDrawingShield = false; currentShield = null;
+    	asteroids = new ArrayList<Asteroid>();
+    	shields = new ArrayList<Shield>();
+    	gameState = STATE_PLAYING;
+    }
+    
+    private void drawTitle(Canvas canvas) {
+    	Paint p = new Paint();
+        
+        canvas.save();
+        ship.setBounds(shipLeft, shipTop, shipRight, shipBottom);
+        ship.draw(canvas);
+        canvas.restore();
+
+        String title1 = "WARP";
+        String title2 = "DRIVE";
+        String title3 = "EXTREME";
+        p.setTextSize(titleFontSize);
+        p.setColor(Color.RED);
+        canvas.drawText(title3, (canvasWidth / 2) - p.measureText(title3) / 2, canvasHeight / 2, p);
+        p.setColor(Color.WHITE);
+        canvas.save();
+        canvas.rotate(-15, canvasWidth / 2, canvasHeight / 2);
+        canvas.drawText(title1, (canvasWidth / 4.0f), canvasHeight / 2.0f - titleFontSize*1.5f, p);
+        canvas.restore();
+        canvas.save();
+        canvas.rotate(15, canvasWidth / 2, canvasHeight / 2);
+        canvas.drawText(title2, canvasWidth - (canvasHeight / 4) - p.measureText(title1) / 2, canvasHeight / 2 - titleFontSize, p);
+        canvas.restore();
+        
+    	
+    	p.setColor(Color.WHITE);        
+        String startText = context.getResources().getString(R.string.start_text);
+        p.setTextSize(timeFontSize);
+        canvas.drawText(startText, (canvasWidth / 2) - p.measureText(startText) / 2, shipTop - timeFontSize - 10.0f, p);
+    }
+    
+    private void drawGame(Canvas canvas) {
         Paint p = new Paint();
         
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
@@ -106,10 +171,12 @@ public class GameThread extends Thread {
         	asteroidDraw.draw(canvas);
         	canvas.restore();
 
-//        	p.setColor(Color.RED);
-//        	p.setAlpha(50);
-//        	canvas.drawCircle((float)a.getPos().x, (float)a.getPos().y, (float)a.getRadius(), p);
-//        	p.setAlpha(255);
+        	/*// Border on meteors
+        	p.setColor(Color.RED);
+        	p.setAlpha(50);
+        	canvas.drawCircle((float)a.getPos().x, (float)a.getPos().y, (float)a.getRadius(), p);
+        	p.setAlpha(255);
+        	*/
         }
         
         // display the shields
@@ -129,7 +196,7 @@ public class GameThread extends Thread {
         // display the time
         p.setColor(Color.WHITE);
         p.setTextSize(timeFontSize);
-        String timeDisplay = String.format("Time: %d", time);
+        String timeDisplay = context.getResources().getString(R.string.time_label) + ": " + time;
         canvas.drawText(timeDisplay, canvasWidth - p.measureText(timeDisplay) - 20.0f,
         		timeFontSize, p);
 
@@ -142,24 +209,43 @@ public class GameThread extends Thread {
         } else {
 	        p.setColor(SHIELD_COLOR);
 	        p.setTextSize(energyFontSize);
-	        String shieldDisplay = String.format("Energy: %03d", currentEnergy);
-	        canvas.drawText(shieldDisplay, 40.0f, canvasHeight - 40.0f, p);
+	        String energyText = String.format("%s: %03d", 
+	        		context.getResources().getString(R.string.energy_label), currentEnergy);
+	        canvas.drawText(energyText, 40.0f, canvasHeight - 40.0f, p);
         }
         
         // display the ship health
         int c = Color.GREEN;
-        if(health < 25) p.setColor(Color.RED);
-        else if (health < 75) p.setColor(Color.YELLOW);
+        if(health < 25) c = Color.RED;
+        else if (health < 75) c = Color.YELLOW;
         healthBar.setCurrent(health);
         healthBar.setColor(c);
         healthBar.draw(canvas);
     }
     
+    private void drawGameOver(Canvas canvas) {
+        Paint p = new Paint();
+        
+        p.setColor(Color.WHITE);
+        p.setTextSize(gameoverFontSize);
+        String text = context.getResources().getString(R.string.gameover);
+        canvas.drawText(text, (canvasWidth / 2) - p.measureText(text) / 2, canvasHeight / 2 - gameoverFontSize, p);
+        
+        String score = String.format("%s: %d %s!", context.getResources().getString(R.string.youWent), 
+        		time, context.getResources().getString(R.string.seconds));
+        p.setTextSize(scoreFontSize);
+        canvas.drawText(score, (canvasWidth / 2) - p.measureText(score) / 2, canvasHeight / 2, p);
+        
+        String retry = context.getResources().getString(R.string.retry);
+        p.setTextSize(timeFontSize);
+        canvas.drawText(retry, (canvasWidth / 2) - p.measureText(retry) / 2, canvasHeight - timeFontSize - 10.0f, p);
+    }
+    
     public boolean isCreateAsteroidTime() {
-    	if(frame != 0) return false;
+    	if(frame % 12 != 0) return false;
     	
     	// TODO: Some more complicated function can go here
-    	if(time % 1 == 0) return true;
+    	if(time > 0) return true;
     	
     	return false;
     }
@@ -181,6 +267,8 @@ public class GameThread extends Thread {
     public void moveAsteroids() {
     	ArrayList<Asteroid> deleteAsteroid = new ArrayList<Asteroid>();
     	for(Asteroid a : asteroids) {
+    		
+    		// new location
     		double speed = a.getSpeed();
     		double heading = a.getHeading();
     		int x = ((int)(a.getPos().x - Math.cos(heading/180*Math.PI)*(speed / FRAMES_PER_SECOND)));
@@ -196,19 +284,20 @@ public class GameThread extends Thread {
     			continue;
     		}
     		
+    		// check if hit ship
     		if(a.collidingWithRect(shipLeft, shipTop, shipRight, shipBottom)) {
     			health -= a.getDamage();
     			deleteAsteroid.add(a);
     			continue;
     		}
     		
+    		// check if hit shield
     		ArrayList<Shield> deleteShield = new ArrayList<Shield>();
     		for(Shield s : shields) {
     			if(a.collidingWithLine(s.getStart(), s.getEnd())) {
     				deleteAsteroid.add(a);
     				s.setHealth(s.getHealth() - a.getDamage());
-    				if(s.getHealth() < 0)
-    					deleteShield.add(s);
+    				if(s.getHealth() < 0) deleteShield.add(s);
     				continue;
     			}
     		}
@@ -219,6 +308,7 @@ public class GameThread extends Thread {
     }
     
     public void startShield(Point start) {
+    	if(gameState != STATE_PLAYING) startGame();
     	if(energy <= 0) return;
     	
     	Shield s = new Shield(start);
@@ -278,7 +368,7 @@ public class GameThread extends Thread {
             }
             
             frame++;
-            if(frame % FRAMES_PER_SECOND == 0) {
+            if(frame % FRAMES_PER_SECOND == 0 && gameState == STATE_PLAYING) {
             	time++;
             	frame = 0;
             }

@@ -37,7 +37,7 @@ public class GameBar {
         c.drawRect(left, top, right, bottom, p);   
         
         p.setColor(color);
-        c.drawRect(left, top, right * (current / (float)max), bottom, p);
+        c.drawRect(left, top, left + (right - left)*(current / (float)max), bottom, p);
 	}
 	
 	public void setIndex(int index) {
