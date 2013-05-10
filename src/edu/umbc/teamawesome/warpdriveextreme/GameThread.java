@@ -1,6 +1,9 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
 import java.util.ArrayList;
+import java.util.Vector;
+
+import math.geom2d.Vector2D;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -12,6 +15,7 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 public class GameThread extends Thread {
@@ -273,6 +277,7 @@ public class GameThread extends Thread {
     		// new location
     		double speed = a.getSpeed();
     		double heading = a.getHeading();
+    		Point oldPos = new Point(a.getPos().x, a.getPos().y);
     		int x = ((int)(a.getPos().x - Math.cos(heading/180*Math.PI)*(speed / FRAMES_PER_SECOND)));
     		int y = ((int)(a.getPos().y - Math.sin(heading/180*Math.PI)*(speed / FRAMES_PER_SECOND)));
     		a.setPos(new Point(x, y));
@@ -315,10 +320,16 @@ public class GameThread extends Thread {
     				if(s.getHealth() < 0) deleteShield.add(s);
     				
     				a.setHealth(a.getHealth() - s.getHealth());
-    				if(a.getHealth() <= 0) deleteAsteroid.add(a);
-    				else {
-        				// TODO: Add calcuation for reflecting asteroid
-    				}
+
+    				// new asteroid direction
+					int dx = s.getEnd().x - s.getStart().x;
+					int dy = s.getEnd().y - s.getStart().y;
+					
+					Vector2D ri = (new Vector2D(x - oldPos.x, y - oldPos.y)).opposite();
+					Vector2D normal = (new Vector2D(-dy, dx)).normalize();
+					
+					Vector2D rr = ri.minus((normal.times(2).times(ri.dot(normal))));
+					a.setHeading(rr.angle() / Math.PI * 180);
     			}
     		}
     		shields.removeAll(deleteShield);
@@ -412,5 +423,4 @@ public class GameThread extends Thread {
 	        shipBottom = canvasHeight - 20;
     	}
     }
-
 }
