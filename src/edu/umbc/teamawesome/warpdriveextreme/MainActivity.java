@@ -1,10 +1,13 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.SoundPool;
 import android.os.Bundle;
 import android.os.Handler;
 import android.app.Activity;
+import android.content.Context;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 
@@ -15,7 +18,11 @@ public class MainActivity extends Activity implements OnClickListener
 	private static final int FRAME_RATE = 20; // 50 fps
 	private MediaPlayer mMusicPlayer;
 	
-	
+	private SoundPool mSoundPool;
+	private AudioManager  mAudioManager;
+
+	private int BACK_SOUND_ID;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) 
 	{
@@ -28,6 +35,11 @@ public class MainActivity extends Activity implements OnClickListener
 			mMusicPlayer.start();
 			mMusicPlayer.setLooping(true);
 		}
+		
+		mSoundPool = new SoundPool(10, AudioManager.STREAM_MUSIC, 0);
+		mAudioManager = (AudioManager)getSystemService(Context.AUDIO_SERVICE);
+
+		BACK_SOUND_ID = mSoundPool.load(this, R.raw.back, 1);
 
 		
 		Handler h = new Handler();
@@ -65,4 +77,18 @@ public class MainActivity extends Activity implements OnClickListener
 		}
 	};
 
+	@Override
+	public boolean onKeyDown(int keyCode, KeyEvent event) {
+		if(keyCode == KeyEvent.KEYCODE_BACK && UserPreferences.getSoundEnabled(this))
+		{
+			float streamVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+			streamVolume = streamVolume / mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+			mSoundPool.play(BACK_SOUND_ID, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
+		}
+		
+		return super.onKeyDown(keyCode, event);
+	}
+
+	
 }

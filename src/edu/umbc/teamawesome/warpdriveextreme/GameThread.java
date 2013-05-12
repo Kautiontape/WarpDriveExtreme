@@ -1,11 +1,11 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
 import java.util.ArrayList;
-import java.util.Vector;
 
 import math.geom2d.Vector2D;
 
 import android.app.AlertDialog;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.Resources;
@@ -24,6 +24,7 @@ import android.util.Log;
 import android.view.SurfaceHolder;
 import android.widget.EditText;
 
+@SuppressLint("DefaultLocale")
 public class GameThread extends Thread {
 	
 	// constants
@@ -42,6 +43,7 @@ public class GameThread extends Thread {
 	private int energy = 100, health = 100;
 	private boolean isDrawingShield = false;
 	private Shield currentShield = null;
+	private GamePhysics.Rect shipBox;
     
     private ArrayList<Asteroid> asteroids = new ArrayList<Asteroid>();
     private ArrayList<Shield> shields = new ArrayList<Shield>();
@@ -49,22 +51,22 @@ public class GameThread extends Thread {
 	// game metrics
 	private int canvasWidth = 1, canvasHeight = 1;
 	private int frame = 0, time = 0;
-	
-	// ship info
-	private int shipLeft, shipTop, shipRight, shipBottom;
 
 	// overhead
     private SurfaceHolder holder;
 	private Context context;
-	private Handler handler;
+//	private Handler handler;
 	private boolean running = false;
 
 	// sound 
 	private int explosionId;
 	private int shieldId;
 	private int thudId;
+	private int crunchId;
 	private SoundPool mSoundPool;
 	private AudioManager mAudioManager;
+
+	private GamePhysics gp;
 	
 	// images
     private Bitmap spaceBitmap;
@@ -82,7 +84,9 @@ public class GameThread extends Thread {
     public GameThread(SurfaceHolder holder, Context context, Handler handler) {
     	this.holder = holder;
     	this.context = context;
-    	this.handler = handler;
+//    	this.handler = handler;
+    	
+    	gp = new GamePhysics();
 
         Resources res = context.getResources();            
         spaceBitmap = BitmapFactory.decodeResource(res, R.drawable.space);
@@ -96,6 +100,7 @@ public class GameThread extends Thread {
 		explosionId = mSoundPool.load(context, R.raw.explosion, 1);
 		shieldId = mSoundPool.load(context, R.raw.zap, 1);
 		thudId = mSoundPool.load(context, R.raw.thud, 1);
+		crunchId = mSoundPool.load(context, R.raw.crunch, 1);
 
         asteroidDraw = res.getDrawable(R.drawable.asteroid);
         timeFontSize = res.getDimensionPixelSize(R.dimen.timeFontSize);
@@ -152,7 +157,7 @@ public class GameThread extends Thread {
     	Paint p = new Paint();
         
         canvas.save();
-        ship.setBounds(shipLeft, shipTop, shipRight, shipBottom);
+        ship.setBounds((int)shipBox.left(), (int)shipBox.top(), (int)shipBox.right(), (int)shipBox.bottom());
         ship.draw(canvas);
         canvas.restore();
 
@@ -176,7 +181,7 @@ public class GameThread extends Thread {
     	p.setColor(Color.WHITE);        
         String startText = context.getResources().getString(R.string.start_text);
         p.setTextSize(timeFontSize);
-        canvas.drawText(startText, (canvasWidth / 2) - p.measureText(startText) / 2, shipTop - timeFontSize - 10.0f, p);
+        canvas.drawText(startText, (canvasWidth / 2) - p.measureText(startText) / 2, shipBox.top() - timeFontSize - 10.0f, p);
     }
     
     private void drawGame(Canvas canvas) {
@@ -187,7 +192,7 @@ public class GameThread extends Thread {
         
         // ship
         canvas.save();
-        ship.setBounds(shipLeft, shipTop, shipRight, shipBottom);
+        ship.setBounds((int)shipBox.left(), (int)shipBox.top(), (int)shipBox.right(), (int)shipBox.bottom());
         ship.draw(canvas);
         canvas.restore();
         
@@ -215,7 +220,7 @@ public class GameThread extends Thread {
         p.setColor(SHIELD_COLOR);
         p.setStrokeWidth(2.0f);
         for(Shield s : shields) {
-        	p.setAlpha((int)(((float)s.getHealth() / Shield.MAX_HEALTH) * 255));
+        	p.setAlpha(Math.max((int)(((float)s.getHealth() / Shield.MAX_HEALTH) * 255), 50));
         	canvas.drawLine(s.getStart().x, s.getStart().y, s.getEnd().x, s.getEnd().y, p);
         }
         if(isDrawingShield && currentShield != null) {
@@ -256,7 +261,7 @@ public class GameThread extends Thread {
         healthBar.draw(canvas);
     }
     
-    private void drawGameOver(Canvas canvas) {
+	private void drawGameOver(Canvas canvas) {
         Paint p = new Paint();
         
         p.setColor(Color.WHITE);
@@ -280,98 +285,109 @@ public class GameThread extends Thread {
     }
     
     public void createAsteroid() {
-    	double radius = Math.min(0.3 + Math.random()*Asteroid.MAX_RADIUS, Asteroid.MAX_RADIUS);
+    	double radius = Math.min(0.5 + Math.random()*Asteroid.MAX_RADIUS, Asteroid.MAX_RADIUS);
     	int startX = (int)(Math.random() * (canvasWidth + 1));
     	int startY = (int)-radius;
     	int endX = (int)(Math.random() * (canvasWidth + 1));
-    	double deltaX = startX - endX;
-    	double deltaY = startY - canvasHeight;
+    	Vector2D delta = new Vector2D(startX - endX, startY - canvasHeight);
     	
     	Asteroid a = new Asteroid(startX, startY);
-    	a.setHeading(Math.atan2(deltaY, deltaX) / Math.PI * 180);
-    	a.setSpeed(1000);
+    	a.setHeading(Math.toDegrees(delta.angle()));
+    	a.setSpeed(Asteroid.MAX_SPEED / FRAMES_PER_SECOND);
     	a.setRadius(radius);
     	asteroids.add(a);
     }
     
     public void moveAsteroids() {
     	ArrayList<Asteroid> deleteAsteroid = new ArrayList<Asteroid>();
-    	for(Asteroid a : asteroids) {
-    		if(deleteAsteroid.contains(a)) continue;
-    		
-    		// new location
-    		double speed = a.getSpeed();
-    		double heading = a.getHeading();
-    		Point oldPos = new Point(a.getPos().x, a.getPos().y);
-    		int x = ((int)(a.getPos().x - Math.cos(heading/180*Math.PI)*(speed / FRAMES_PER_SECOND)));
-    		int y = ((int)(a.getPos().y - Math.sin(heading/180*Math.PI)*(speed / FRAMES_PER_SECOND)));
-    		a.setPos(new Point(x, y));
-    		
-    		// cleanup missing asteroids
-    		if(a.getPos().y - a.getRadius() > canvasHeight) { // off screen
-    			deleteAsteroid.add(a);
-    			continue;
-    		} else if (a.getPos().x + a.getRadius() < 0 || a.getPos().x - a.getRadius() > canvasWidth) {
-    			deleteAsteroid.add(a);
-    			continue;
-    		}
-    		
-    		// check if hit ship
-    		if(a.collidingWithRect(shipLeft, shipTop, shipRight, shipBottom)) {
-    			health -= a.getDamage();
-    			deleteAsteroid.add(a);
-    			playThud();
-    			continue;
-    		}
-    		
-    		// check if hit asteroid
-    		for(Asteroid a2 : asteroids) {
-    			if(a != a2 && a.collidingWithAsteroid(a2)) {
-    				a.setHealth(a.getHealth() - a2.getDamage());
-    				a2.setHealth(a2.getHealth() - a.getDamage());
-    				
-    				if(a2.getHealth() <= 0) 
-    				{
-    					deleteAsteroid.add(a2);
-    					playExplosion();
-    				}
-    				if(a.getHealth() <= 0) 
-    				{	
-    					deleteAsteroid.add(a);
-    					playExplosion();
-    				}
-    				else {
-    					// TODO: Calculate the new asteroid position
-    				}
-    			}
-    		}
-    		
-    		// check if hit shield
-    		ArrayList<Shield> deleteShield = new ArrayList<Shield>();
-    		for(Shield s : shields) {
-    			if(a.collidingWithLine(s.getStart(), s.getEnd())) {
-    				s.setHealth(s.getHealth() - a.getDamage());
-    				if(s.getHealth() < 0) deleteShield.add(s);
-    				
-    				a.setHealth(a.getHealth() - s.getHealth());
+    	synchronized (asteroids) {
+	    	for(Asteroid a : asteroids) {
+	    		if(deleteAsteroid.contains(a)) continue;
+	    		
+	    		// new location
+	    		Point oldPos = a.getPos();
+	    		a.setPos(a.getNextPos());    		
+	    		GamePhysics.Circle c = gp.new Circle(a.getPos(), a.getRadius());
+	    		
+	    		// movement vector for circle
+	    		GamePhysics.Circle c_vector = gp.new Circle(
+	    				new Point(a.getPos().x - oldPos.x, a.getPos().y - oldPos.y), a.getRadius());
+	    		
+	    		// cleanup missing asteroids
+	    		if(a.getPos().y - a.getRadius() > canvasHeight) { // off screen
+	    			deleteAsteroid.add(a);
+	    			continue;
+	    		} else if (a.getPos().x + a.getRadius() < 0 || a.getPos().x - a.getRadius() > canvasWidth) {
+	    			deleteAsteroid.add(a);
+	    			continue;
+	    		}
+	    		
+	    		// check if hit ship
+	    		if(GamePhysics.colliding(c, shipBox)) {
+	    			health -= a.getDamage();
+	    			deleteAsteroid.add(a);
+	    			playThud();
+	    			continue;
+	    		}
+	    		
+	    		// check if hit asteroid
+	    		for(Asteroid a2 : asteroids) {
+	    			if(a != a2 && GamePhysics.colliding(c, gp.new Circle(a2.getPos(), a2.getRadius()))) {
+	    				a.setHealth(a.getHealth() - a2.getDamage());
+	    				a2.setHealth(a2.getHealth() - a.getDamage());
+	    				
+	    				// https://sites.google.com/site/t3hprogrammer/research/circle-circle-collision-tutorial
+						double d = Math.sqrt(Math.pow(a.getPos().x - a2.getPos().x, 2) + 
+								Math.pow(a.getPos().y - a2.getPos().y, 2));
+	    				
+	    				// fix collision
+	    				Point mid = new Point((a.getPos().x + a2.getPos().x) / 2, (a.getPos().y + a2.getPos().y) / 2);
+	    				a.setPos(new Point((int)(mid.x + a.getRadius() * (a.getPos().x - a2.getPos().x) / d),
+	    						(int)(mid.y + a.getRadius() * (a.getPos().y - a2.getPos().y) / d)));
+	    				a2.setPos(new Point((int)(mid.x + a2.getRadius() * (a2.getPos().x - a.getPos().x) / d),
+	    						(int)(mid.y + a2.getRadius() * (a2.getPos().y - a.getPos().y) / d)));
+	    				
+	    				// calculate new velocity vectors
+						Vector2D n = new Vector2D((a2.getPos().x - a.getPos().x) / d, 
+								(a2.getPos().y - a.getPos().y) / d);
+						Vector2D va = a.getVelocityVector();
+						Vector2D va2 = a2.getVelocityVector();
+						
+						double p = 2 * (va.dot(n) - va2.dot(n)) / (a.getMass() + a2.getMass());
+						Vector2D wa = va.minus(n.times(p * a.getMass())); 
+						Vector2D wa2 = va2.plus(n.times(p * a2.getMass()));
+	
+						// set new headings
+						a.setHeading(Math.toDegrees(wa.angle()));
+						a2.setHeading(Math.toDegrees(wa2.angle()));
+						
+						playCrunch();
+	    			}
+	    		}
+	    		
+	    		// check if hit shield
+	    		ArrayList<Shield> deleteShield = new ArrayList<Shield>();
+	    		synchronized (shields) {
+		    		for(Shield s : shields) {
+		    			if(GamePhysics.colliding(c, gp.new Line(s.getStart(), s.getEnd())) &&
+		    					c.getC().y < Math.max(s.getStart().y, s.getEnd().y)) {
+		    				s.setHealth(s.getHealth() - a.getDamage());
+		    				if(s.getHealth() < 0) deleteShield.add(s);
+		    				
+		    				a.setHealth(a.getHealth() - s.getHealth());
+		
+		    				// new asteroid direction
+							a.setHeading(GamePhysics.reflect(c_vector, gp.new Line(s.getStart(), s.getEnd())));
+							a.setBounced(true);
+							playShield();
+		    			}
+	    		}
+	        		shields.removeAll(deleteShield);
+				}
+	    	}
 
-    				// new asteroid direction
-					int dx = s.getEnd().x - s.getStart().x;
-					int dy = s.getEnd().y - s.getStart().y;
-					
-					Vector2D ri = (new Vector2D(x - oldPos.x, y - oldPos.y)).opposite();
-					Vector2D normal = (new Vector2D(-dy, dx)).normalize();
-					
-					Vector2D rr = ri.minus((normal.times(2).times(ri.dot(normal))));
-					a.setHeading(rr.angle() / Math.PI * 180);
-					
-					playShield();
-    			}
-    		}
-    		shields.removeAll(deleteShield);
-    	}
-
-    	asteroids.removeAll(deleteAsteroid);
+        	asteroids.removeAll(deleteAsteroid);			
+		}
     }
     
     public void startShield(Point start) {
@@ -453,10 +469,11 @@ public class GameThread extends Thread {
     
     public void updateShipSize() {
     	synchronized (holder) {
-	        shipLeft = (canvasWidth / 2) - (int)(shipWidth*SHIP_SCALE / 2);
-	        shipRight = (canvasWidth / 2) + (int)(shipWidth*SHIP_SCALE / 2);
-	        shipTop = canvasHeight - (int)(shipHeight*SHIP_SCALE + 20); 
-	        shipBottom = canvasHeight - 20;
+	        int shipLeft = (canvasWidth / 2) - (int)(shipWidth*SHIP_SCALE / 2);
+	        int shipRight = (canvasWidth / 2) + (int)(shipWidth*SHIP_SCALE / 2);
+	        int shipTop = canvasHeight - (int)(shipHeight*SHIP_SCALE + 20); 
+	        int shipBottom = canvasHeight - 20;
+	        shipBox = gp.new Rect(shipLeft, shipTop, shipRight, shipBottom);
     	}
     }
     
@@ -492,6 +509,18 @@ public class GameThread extends Thread {
 		if(UserPreferences.getSoundEnabled(context))
 		{
 			mSoundPool.play(thudId, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
+		}
+
+    }
+    
+    public void playCrunch()
+    {
+		float streamVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		streamVolume = streamVolume / mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+		if(UserPreferences.getSoundEnabled(context))
+		{
+			mSoundPool.play(crunchId, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
 		}
 
     }
