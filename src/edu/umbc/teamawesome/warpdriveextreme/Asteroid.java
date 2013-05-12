@@ -7,10 +7,12 @@ public class Asteroid {
 	public static final int MAX_RADIUS = 65;
 	public static final int MAX_DAMAGE = 20;
 	public static final int MAX_HEALTH = 20;
-	public static final int MAX_SPEED = 500;
+	public static final int MAX_SPEED = 800;
+	public static final int MIN_SPEED = 200;
+	public static final int SEC_PER_ROTATE = 2;
 
 	private Point pos = new Point(0, 0), initPos = new Point(0, 0);
-	private double heading = 0.0, speed = 0.0, radius = 0.0;
+	private double heading = 0.0, speed = 0.0, radius = 0.0, rotate = 0.0;
 	private int health = MAX_HEALTH; private boolean isBounced = false;
 	
 	public Asteroid() { this(new Point(0, 0)); }
@@ -24,8 +26,8 @@ public class Asteroid {
     public Point getNextPos() {
 		double speed = getSpeed();
 		double heading = getHeading();
-		int x = ((int)(getPos().x - Math.cos(heading/180*Math.PI)*speed));
-		int y = ((int)(getPos().y - Math.sin(heading/180*Math.PI)*speed));
+		int x = ((int)(getPos().x - Math.cos(heading)*speed));
+		int y = ((int)(getPos().y - Math.sin(heading)*speed));
 		return new Point(x, y);
     }
     
@@ -88,6 +90,14 @@ public class Asteroid {
 	
 	public void setRadius(double radius) {
 		this.radius = radius;
+	}
+	
+	public double getRotate() {
+		return rotate;
+	}
+	
+	public void setRotate(double rotate) {
+		this.rotate = rotate;
 	}
 
 }

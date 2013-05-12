@@ -1,6 +1,7 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 
 import math.geom2d.Vector2D;
 
@@ -15,6 +16,7 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
+import android.util.Log;
 import android.view.SurfaceHolder;
 
 @SuppressLint("DefaultLocale")
@@ -23,9 +25,13 @@ public class GameThread extends Thread {
 	// constants
 	private static final float SHIP_SCALE = 0.5f;
 	private static final int ENERGY_PER_SECOND = 6;
+	private static final int ENERGY_PER_BOUNCE = 5;
+	private static final int ENERGY_PER_BLOCK = 5;
 	private static final int FRAMES_PER_SECOND = 50;
 	private static final boolean ENERGY_BAR = true;
 	private static final int SHIELD_COLOR = Color.CYAN;
+	private static final double TIME_MAX_SPEED = 30.0;
+//	private static final double GAIN_EVENT_SHOW_TIME = 0.5;
 	
 	private static final int STATE_START = 0;
 	private static final int STATE_PLAYING = 1;
@@ -51,6 +57,7 @@ public class GameThread extends Thread {
 //	private Handler handler;
 	private boolean running = false;
 	private GamePhysics gp;
+	private ArrayList<EnergyGainEvent> gainEvents = new ArrayList<EnergyGainEvent>();
 	
 	// images
     private Bitmap spaceBitmap;
@@ -109,7 +116,11 @@ public class GameThread extends Thread {
     	} else if(gameState == STATE_START){
     		drawTitle(canvas);
     	} else {
-    		drawGame(canvas);
+    		try {
+    			drawGame(canvas);
+    		} catch(ConcurrentModificationException cme) {
+    			// ignore
+    		}
     	}
     }
     
@@ -223,6 +234,20 @@ public class GameThread extends Thread {
 	        canvas.drawText(energyText, 40.0f, canvasHeight - 40.0f, p);
         }
         
+        // energy gain
+        /*
+        for(EnergyGainEvent ege : gainEvents) {
+        	if(ege.getTime() + GAIN_EVENT_SHOW_TIME > exactTime()) {
+        		p.setColor(SHIELD_COLOR);
+        		p.setTextSize(energyFontSize);
+        		Point loc = ege.getEventLocation();
+        		canvas.drawText("+" + ege.getGain(), loc.x, loc.y, p);
+        	} else {
+        		gainEvents.remove(ege);
+        	}
+        }
+        */
+        
         // ship health
         int c = Color.GREEN;
         if(health < 25) c = Color.RED;
@@ -251,8 +276,8 @@ public class GameThread extends Thread {
     }
     
     public boolean isCreateAsteroidTime() {
-    	if(frame % Math.max(FRAMES_PER_SECOND - time*2, 1) != 0 || time < 1) return false;
-    	return true;
+    	if(time < 1) return false;
+    	return ((frame % (int)(FRAMES_PER_SECOND * (15.0 / time))) == 0);
     }
     
     public void createAsteroid() {
@@ -263,8 +288,9 @@ public class GameThread extends Thread {
     	Vector2D delta = new Vector2D(startX - endX, startY - canvasHeight);
     	
     	Asteroid a = new Asteroid(startX, startY);
-    	a.setHeading(Math.toDegrees(delta.angle()));
-    	a.setSpeed(Asteroid.MAX_SPEED / FRAMES_PER_SECOND);
+    	a.setHeading(delta.angle());
+    	a.setSpeed(Math.max(Asteroid.MIN_SPEED / FRAMES_PER_SECOND, 
+    			(time / TIME_MAX_SPEED)*(Asteroid.MAX_SPEED / FRAMES_PER_SECOND)));
     	a.setRadius(radius);
     	asteroids.add(a);
     }
@@ -300,10 +326,8 @@ public class GameThread extends Thread {
     		}
     		
     		// check if hit asteroid
-    		ArrayList<Asteroid> bounced = new ArrayList<Asteroid>();
     		for(Asteroid a2 : asteroids) {
-    			if(a != a2 && !bounced.contains(a2) && a.isBounced() && 
-    					GamePhysics.colliding(c, gp.new Circle(a2.getPos(), a2.getRadius()))) {
+    			if(a != a2 && a.isBounced() && GamePhysics.colliding(c, gp.new Circle(a2.getPos(), a2.getRadius()))) {
     				a.setHealth(a.getHealth() - a2.getDamage());
     				a2.setHealth(a2.getHealth() - a.getDamage());
     				
@@ -329,10 +353,12 @@ public class GameThread extends Thread {
 					Vector2D wa2 = va2.plus(n.times(p * a2.getMass()));
 
 					// set new headings
-					a.setHeading(Math.toDegrees(wa.angle()));
-					a2.setHeading(Math.toDegrees(wa2.angle()));
+					a.setHeading(wa.angle());
+					a2.setHeading(wa2.angle());
+					a.setPos(a.getNextPos());
+					a2.setPos(a2.getNextPos());
 					
-					bounced.add(a2);
+					addEnergy(ENERGY_PER_BOUNCE, mid);
     			}
     		}
     		
@@ -349,6 +375,8 @@ public class GameThread extends Thread {
     				// new asteroid direction
 					a.setHeading(GamePhysics.reflect(c_vector, gp.new Line(s.getStart(), s.getEnd())));
 					a.setBounced(true);
+					
+					addEnergy(ENERGY_PER_BLOCK, c.getC());
     			}
     		}
 	    	synchronized (shields) {
@@ -396,12 +424,24 @@ public class GameThread extends Thread {
     
     private void regenerateEnergy() {
     	if(frame % Math.floor((double)FRAMES_PER_SECOND / (double)ENERGY_PER_SECOND) != 0) return;
-    	energy += 1;
-    	if(energy > 100) energy = 100;
+    	addEnergy(1);
     }
 
 	public void setRunning(boolean b) {
 		this.running = b;
+	}
+	
+	private void addEnergy(int gain) {
+		energy = Math.min(energy + gain, 100);
+	}
+	
+	private void addEnergy(int gain, Point eventLoc) {
+		addEnergy(gain);
+		gainEvents.add(new EnergyGainEvent(eventLoc, gain, exactTime()));		
+	}
+	
+	private double exactTime() {
+		return time + ((double)frame / FRAMES_PER_SECOND);
 	}
 
     @Override
@@ -422,9 +462,9 @@ public class GameThread extends Thread {
             }
             
             frame++;
-            if(frame % FRAMES_PER_SECOND == 0 && gameState == STATE_PLAYING) {
-            	time++;
+            if(frame % FRAMES_PER_SECOND == 0) {
             	frame = 0;
+	            if(gameState == STATE_PLAYING) time++;
             }
         }
     }

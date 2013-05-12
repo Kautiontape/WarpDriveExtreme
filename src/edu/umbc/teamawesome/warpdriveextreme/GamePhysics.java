@@ -85,6 +85,6 @@ public class GamePhysics {
 		Vector2D normal = (new Vector2D(-dy, dx)).normalize();
 		
 		Vector2D rr = ri.minus((normal.times(2).times(ri.dot(normal))));
-		return rr.angle() / Math.PI * 180;
+		return rr.angle();
 	}
 }
