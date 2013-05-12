@@ -1,0 +1,45 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/space"
+    android:id="@+id/main_menu_activity_layout">
+
+    <Button
+        android:id="@+id/newGameButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerInParent="true"
+        android:text="Start New Game" 
+        android:layout_margin="10dp"/>
+
+    <Button
+        android:id="@+id/settingsButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/newGameButton"
+        android:layout_centerHorizontal="true"
+        android:text="Settings" 
+        android:layout_margin="10dp"/>
+
+        <Button
+        android:id="@+id/highScoresButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/settingsButton"
+        android:layout_centerHorizontal="true"
+        android:text="High Scores" 
+        android:layout_margin="10dp"/>
+
+        <ImageView
+            android:id="@+id/logo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_alignParentTop="true"
+            android:src="@drawable/wdelogo" 
+            android:layout_above="@+id/newGameButton"
+            android:layout_marginBottom="10dp"/>
+        
+</RelativeLayout>

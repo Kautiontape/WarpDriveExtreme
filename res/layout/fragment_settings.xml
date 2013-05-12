@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent" 
+    android:background="@drawable/space"
+    android:padding="15dp">
+
+    <ToggleButton
+        android:id="@+id/musicToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/soundToggle"
+        android:layout_alignParentRight="true"
+        android:text="ToggleButton" 
+        android:layout_margin="10dp"/>
+
+    <ToggleButton
+        android:id="@+id/soundToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:text="ToggleButton" 
+        android:layout_margin="10dp"/>
+
+    <ToggleButton
+        android:id="@+id/showTutorialToggle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/soundToggle"
+        android:text="ToggleButton" 
+        android:layout_margin="10dp"/>
+
+    <TextView
+        android:id="@+id/textView1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/musicToggle"
+        android:layout_centerHorizontal="true"
+        android:text="Music"
+        android:textSize="25dp" />
+
+    <TextView
+        android:id="@+id/textView3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/soundToggle"
+        android:layout_alignRight="@+id/textView2"
+        android:text="Sound Effects"
+        android:textSize="25dp" />
+
+    <TextView
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/showTutorialToggle"
+        android:layout_centerHorizontal="true"
+        android:text="Show Tutorial"
+        android:textSize="25dp" />
+
+</RelativeLayout>
