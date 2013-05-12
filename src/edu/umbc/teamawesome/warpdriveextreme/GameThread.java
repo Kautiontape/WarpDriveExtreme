@@ -271,88 +271,92 @@ public class GameThread extends Thread {
     
     public void moveAsteroids() {
     	ArrayList<Asteroid> deleteAsteroid = new ArrayList<Asteroid>();
-    	synchronized (asteroids) {
-	    	for(Asteroid a : asteroids) {
-	    		if(deleteAsteroid.contains(a)) continue;
-	    		
-	    		// new location
-	    		Point oldPos = a.getPos();
-	    		a.setPos(a.getNextPos());    		
-	    		GamePhysics.Circle c = gp.new Circle(a.getPos(), a.getRadius());
-	    		
-	    		// movement vector for circle
-	    		GamePhysics.Circle c_vector = gp.new Circle(
-	    				new Point(a.getPos().x - oldPos.x, a.getPos().y - oldPos.y), a.getRadius());
-	    		
-	    		// cleanup missing asteroids
-	    		if(a.getPos().y - a.getRadius() > canvasHeight) { // off screen
-	    			deleteAsteroid.add(a);
-	    			continue;
-	    		} else if (a.getPos().x + a.getRadius() < 0 || a.getPos().x - a.getRadius() > canvasWidth) {
-	    			deleteAsteroid.add(a);
-	    			continue;
-	    		}
-	    		
-	    		// check if hit ship
-	    		if(GamePhysics.colliding(c, shipBox)) {
-	    			health -= a.getDamage();
-	    			deleteAsteroid.add(a);
-	    			continue;
-	    		}
-	    		
-	    		// check if hit asteroid
-	    		for(Asteroid a2 : asteroids) {
-	    			if(a != a2 && GamePhysics.colliding(c, gp.new Circle(a2.getPos(), a2.getRadius()))) {
-	    				a.setHealth(a.getHealth() - a2.getDamage());
-	    				a2.setHealth(a2.getHealth() - a.getDamage());
-	    				
-	    				// https://sites.google.com/site/t3hprogrammer/research/circle-circle-collision-tutorial
-						double d = Math.sqrt(Math.pow(a.getPos().x - a2.getPos().x, 2) + 
-								Math.pow(a.getPos().y - a2.getPos().y, 2));
-	    				
-	    				// fix collision
-	    				Point mid = new Point((a.getPos().x + a2.getPos().x) / 2, (a.getPos().y + a2.getPos().y) / 2);
-	    				a.setPos(new Point((int)(mid.x + a.getRadius() * (a.getPos().x - a2.getPos().x) / d),
-	    						(int)(mid.y + a.getRadius() * (a.getPos().y - a2.getPos().y) / d)));
-	    				a2.setPos(new Point((int)(mid.x + a2.getRadius() * (a2.getPos().x - a.getPos().x) / d),
-	    						(int)(mid.y + a2.getRadius() * (a2.getPos().y - a.getPos().y) / d)));
-	    				
-	    				// calculate new velocity vectors
-						Vector2D n = new Vector2D((a2.getPos().x - a.getPos().x) / d, 
-								(a2.getPos().y - a.getPos().y) / d);
-						Vector2D va = a.getVelocityVector();
-						Vector2D va2 = a2.getVelocityVector();
-						
-						double p = 2 * (va.dot(n) - va2.dot(n)) / (a.getMass() + a2.getMass());
-						Vector2D wa = va.minus(n.times(p * a.getMass())); 
-						Vector2D wa2 = va2.plus(n.times(p * a2.getMass()));
-	
-						// set new headings
-						a.setHeading(Math.toDegrees(wa.angle()));
-						a2.setHeading(Math.toDegrees(wa2.angle()));
-	    			}
-	    		}
-	    		
-	    		// check if hit shield
-	    		ArrayList<Shield> deleteShield = new ArrayList<Shield>();
-	    		synchronized (shields) {
-		    		for(Shield s : shields) {
-		    			if(GamePhysics.colliding(c, gp.new Line(s.getStart(), s.getEnd())) &&
-		    					c.getC().y < Math.max(s.getStart().y, s.getEnd().y)) {
-		    				s.setHealth(s.getHealth() - a.getDamage());
-		    				if(s.getHealth() < 0) deleteShield.add(s);
-		    				
-		    				a.setHealth(a.getHealth() - s.getHealth());
-		
-		    				// new asteroid direction
-							a.setHeading(GamePhysics.reflect(c_vector, gp.new Line(s.getStart(), s.getEnd())));
-							a.setBounced(true);
-		    			}
-	    		}
-	        		shields.removeAll(deleteShield);
-				}
-	    	}
+    	for(Asteroid a : asteroids) {
+    		if(deleteAsteroid.contains(a)) continue;
+    		
+    		// new location
+    		Point oldPos = a.getPos();
+    		a.setPos(a.getNextPos());    		
+    		GamePhysics.Circle c = gp.new Circle(a.getPos(), a.getRadius());
+    		
+    		// movement vector for circle
+    		GamePhysics.Circle c_vector = gp.new Circle(
+    				new Point(a.getPos().x - oldPos.x, a.getPos().y - oldPos.y), a.getRadius());
+    		
+    		// cleanup missing asteroids
+    		if(a.getPos().y - a.getRadius() > canvasHeight) { // off screen
+    			deleteAsteroid.add(a);
+    			continue;
+    		} else if (a.getPos().x + a.getRadius() < 0 || a.getPos().x - a.getRadius() > canvasWidth) {
+    			deleteAsteroid.add(a);
+    			continue;
+    		}
+    		
+    		// check if hit ship
+    		if(GamePhysics.colliding(c, shipBox)) {
+    			health -= a.getDamage();
+    			deleteAsteroid.add(a);
+    			continue;
+    		}
+    		
+    		// check if hit asteroid
+    		ArrayList<Asteroid> bounced = new ArrayList<Asteroid>();
+    		for(Asteroid a2 : asteroids) {
+    			if(a != a2 && !bounced.contains(a2) && a.isBounced() && 
+    					GamePhysics.colliding(c, gp.new Circle(a2.getPos(), a2.getRadius()))) {
+    				a.setHealth(a.getHealth() - a2.getDamage());
+    				a2.setHealth(a2.getHealth() - a.getDamage());
+    				
+    				// https://sites.google.com/site/t3hprogrammer/research/circle-circle-collision-tutorial
+					double d = Math.sqrt(Math.pow(a.getPos().x - a2.getPos().x, 2) + 
+							Math.pow(a.getPos().y - a2.getPos().y, 2));
+    				
+    				// fix collision
+    				Point mid = new Point((a.getPos().x + a2.getPos().x) / 2, (a.getPos().y + a2.getPos().y) / 2);
+    				a.setPos(new Point((int)(mid.x + a.getRadius() * (a.getPos().x - a2.getPos().x) / d),
+    						(int)(mid.y + a.getRadius() * (a.getPos().y - a2.getPos().y) / d)));
+    				a2.setPos(new Point((int)(mid.x + a2.getRadius() * (a2.getPos().x - a.getPos().x) / d),
+    						(int)(mid.y + a2.getRadius() * (a2.getPos().y - a.getPos().y) / d)));
+    				
+    				// calculate new velocity vectors
+					Vector2D n = new Vector2D((a2.getPos().x - a.getPos().x) / d, 
+							(a2.getPos().y - a.getPos().y) / d);
+					Vector2D va = a.getVelocityVector();
+					Vector2D va2 = a2.getVelocityVector();
+					
+					double p = 2 * (va.dot(n) - va2.dot(n)) / (a.getMass() + a2.getMass());
+					Vector2D wa = va.minus(n.times(p * a.getMass())); 
+					Vector2D wa2 = va2.plus(n.times(p * a2.getMass()));
 
+					// set new headings
+					a.setHeading(Math.toDegrees(wa.angle()));
+					a2.setHeading(Math.toDegrees(wa2.angle()));
+					
+					bounced.add(a2);
+    			}
+    		}
+    		
+    		// check if hit shield
+    		ArrayList<Shield> deleteShield = new ArrayList<Shield>();
+    		for(Shield s : shields) {
+    			if(GamePhysics.colliding(c, gp.new Line(s.getStart(), s.getEnd())) &&
+    					c.getC().y < Math.max(s.getStart().y, s.getEnd().y)) {
+    				s.setHealth(s.getHealth() - a.getDamage());
+    				if(s.getHealth() < 0) deleteShield.add(s);
+    				
+    				a.setHealth(a.getHealth() - s.getHealth());
+
+    				// new asteroid direction
+					a.setHeading(GamePhysics.reflect(c_vector, gp.new Line(s.getStart(), s.getEnd())));
+					a.setBounced(true);
+    			}
+    		}
+	    	synchronized (shields) {
+        		shields.removeAll(deleteShield);
+			}
+    	}
+
+	    synchronized (asteroids) {
         	asteroids.removeAll(deleteAsteroid);			
 		}
     }
