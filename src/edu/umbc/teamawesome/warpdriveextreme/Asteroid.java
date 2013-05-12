@@ -7,7 +7,7 @@ public class Asteroid {
 	public static final int MAX_RADIUS = 65;
 	public static final int MAX_DAMAGE = 20;
 	public static final int MAX_HEALTH = 20;
-	public static final int MAX_SPEED = 1000;
+	public static final int MAX_SPEED = 500;
 
 	private Point pos = new Point(0, 0), initPos = new Point(0, 0);
 	private double heading = 0.0, speed = 0.0, radius = 0.0;
