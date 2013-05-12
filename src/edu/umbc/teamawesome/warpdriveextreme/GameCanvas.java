@@ -3,14 +3,14 @@ package edu.umbc.teamawesome.warpdriveextreme;
 import android.content.Context;
 import android.graphics.Point;
 import android.os.Handler;
-import android.os.Message;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
 public class GameCanvas extends SurfaceView implements SurfaceHolder.Callback {
-	private SurfaceHolder holder;
+	private static SurfaceHolder holder;
+	private static Handler handler;
 	private GameThread thread;
 	
 	public GameCanvas(Context context, AttributeSet attrs) {
@@ -19,10 +19,7 @@ public class GameCanvas extends SurfaceView implements SurfaceHolder.Callback {
 		holder = getHolder();
 		holder.addCallback(this);
 
-		thread = new GameThread(holder, context, new Handler() {
-			@Override
-			public void handleMessage(Message m) {}
-		});
+		thread = new GameThread(holder, context, handler);
 		
 		setFocusable(true); // make sure we get key events
 	}
