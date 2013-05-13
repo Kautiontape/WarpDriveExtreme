@@ -33,6 +33,11 @@ public class GameThread extends Thread {
 	private static final double TIME_MAX_SPEED = 30.0;
 //	private static final double GAIN_EVENT_SHOW_TIME = 0.5;
 	
+	// scoring
+	private static final int POINTS_PER_BOUNCE = 500;
+	private static final int POINTS_PER_BLOCK = 500;
+	private static final int POINTS_PER_SECOND = 100;
+	
 	private static final int STATE_START = 0;
 	private static final int STATE_PLAYING = 1;
 	private static final int STATE_GAMEOVER = 2;
@@ -43,6 +48,7 @@ public class GameThread extends Thread {
 	private boolean isDrawingShield = false;
 	private Shield currentShield = null;
 	private GamePhysics.Rect shipBox;
+	private int points = 0;
     
     private ArrayList<Asteroid> asteroids = new ArrayList<Asteroid>();
     private ArrayList<Shield> shields = new ArrayList<Shield>();
@@ -58,6 +64,7 @@ public class GameThread extends Thread {
 	private boolean running = false;
 	private GamePhysics gp;
 	private ArrayList<EnergyGainEvent> gainEvents = new ArrayList<EnergyGainEvent>();
+	private ArrayList<PointGainEvent> pointEvents = new ArrayList<PointGainEvent>();
 	
 	// images
     private Bitmap spaceBitmap;
@@ -105,6 +112,7 @@ public class GameThread extends Thread {
     	
     	moveAsteroids();
     	regenerateEnergy();
+    	generatePoints();
     }
 
     private void updateDisplay(Canvas canvas) {
@@ -127,6 +135,7 @@ public class GameThread extends Thread {
     private void startGame() {
     	frame = 0;
     	time = 0;
+    	points = 0;
     	health = 100;
     	energy = 100;
     	isDrawingShield = false; currentShield = null;
@@ -219,6 +228,12 @@ public class GameThread extends Thread {
         String timeDisplay = context.getResources().getString(R.string.time_label) + ": " + time;
         canvas.drawText(timeDisplay, canvasWidth - p.measureText(timeDisplay) - 20.0f,
         		timeFontSize, p);
+        
+        // points
+        p.setColor(Color.WHITE);
+        p.setTextSize(timeFontSize);
+        String pointsDisplay = context.getResources().getString(R.string.points_label) + ": " + points;
+        canvas.drawText(pointsDisplay, 20.0f, timeFontSize, p);
 
         // energy
         int currentEnergy = energy - (isDrawingShield && currentShield != null ? 
@@ -265,8 +280,7 @@ public class GameThread extends Thread {
         String text = context.getResources().getString(R.string.gameover);
         canvas.drawText(text, (canvasWidth / 2) - p.measureText(text) / 2, canvasHeight / 2 - gameoverFontSize, p);
         
-        String score = String.format("%s: %d %s!", context.getResources().getString(R.string.youWent), 
-        		time, context.getResources().getString(R.string.seconds));
+        String score = String.format("%s: %d", context.getResources().getString(R.string.final_score), points);
         p.setTextSize(scoreFontSize);
         canvas.drawText(score, (canvasWidth / 2) - p.measureText(score) / 2, canvasHeight / 2, p);
         
@@ -332,19 +346,24 @@ public class GameThread extends Thread {
     				a2.setHealth(a2.getHealth() - a.getDamage());
     				
     				// https://sites.google.com/site/t3hprogrammer/research/circle-circle-collision-tutorial
-					double d = Math.sqrt(Math.pow(a.getPos().x - a2.getPos().x, 2) + 
-							Math.pow(a.getPos().y - a2.getPos().y, 2));
+    				Point ca = a.getPos();
+    				Point cb = a2.getPos();
+					double d = Math.sqrt(Math.pow(ca.x - cb.x, 2) + Math.pow(ca.y - cb.y, 2));
     				
     				// fix collision
-    				Point mid = new Point((a.getPos().x + a2.getPos().x) / 2, (a.getPos().y + a2.getPos().y) / 2);
-    				a.setPos(new Point((int)(mid.x + a.getRadius() * (a.getPos().x - a2.getPos().x) / d),
-    						(int)(mid.y + a.getRadius() * (a.getPos().y - a2.getPos().y) / d)));
-    				a2.setPos(new Point((int)(mid.x + a2.getRadius() * (a2.getPos().x - a.getPos().x) / d),
-    						(int)(mid.y + a2.getRadius() * (a2.getPos().y - a.getPos().y) / d)));
+    				Point mid = new Point((ca.x + cb.x) / 2, (ca.y + cb.y) / 2);
+    				a.setPos(new Point((int)(mid.x + a.getRadius() * (ca.x - cb.x) / d),
+    						(int)(mid.y + a.getRadius() * (ca.y - cb.y) / d)));
+    				a2.setPos(new Point((int)(mid.x + a2.getRadius() * (cb.x - ca.x) / d),
+    						(int)(mid.y + a2.getRadius() * (cb.y - ca.y) / d)));
+    				
+    				// update d for new position
+    				ca = a.getPos();
+    				cb = a2.getPos();
+					d = Math.sqrt(Math.pow(ca.x - cb.x, 2) + Math.pow(ca.y - cb.y, 2));
     				
     				// calculate new velocity vectors
-					Vector2D n = new Vector2D((a2.getPos().x - a.getPos().x) / d, 
-							(a2.getPos().y - a.getPos().y) / d);
+					Vector2D n = new Vector2D((cb.x - ca.x) / d, (cb.y - ca.y) / d);
 					Vector2D va = a.getVelocityVector();
 					Vector2D va2 = a2.getVelocityVector();
 					
@@ -355,10 +374,9 @@ public class GameThread extends Thread {
 					// set new headings
 					a.setHeading(wa.angle());
 					a2.setHeading(wa2.angle());
-					a.setPos(a.getNextPos());
-					a2.setPos(a2.getNextPos());
-					
+
 					addEnergy(ENERGY_PER_BOUNCE, mid);
+					addPoints(POINTS_PER_BOUNCE, mid);
     			}
     		}
     		
@@ -377,6 +395,7 @@ public class GameThread extends Thread {
 					a.setBounced(true);
 					
 					addEnergy(ENERGY_PER_BLOCK, c.getC());
+					addPoints(POINTS_PER_BOUNCE, c.getC());
     			}
     		}
 	    	synchronized (shields) {
@@ -422,6 +441,12 @@ public class GameThread extends Thread {
     	}
     }
     
+    private void generatePoints() {
+    	if(frame == 0) {
+    		addPoints(POINTS_PER_SECOND);
+    	}
+    }
+    
     private void regenerateEnergy() {
     	if(frame % Math.floor((double)FRAMES_PER_SECOND / (double)ENERGY_PER_SECOND) != 0) return;
     	addEnergy(1);
@@ -440,6 +465,15 @@ public class GameThread extends Thread {
 		gainEvents.add(new EnergyGainEvent(eventLoc, gain, exactTime()));		
 	}
 	
+	private void addPoints(int gain) {
+		points += gain;
+	}
+	
+	private void addPoints(int gain, Point eventLoc) {
+		addPoints(gain);
+		pointEvents.add(new PointGainEvent(eventLoc, gain, exactTime()));		
+	}
+	
 	private double exactTime() {
 		return time + ((double)frame / FRAMES_PER_SECOND);
 	}
@@ -447,7 +481,11 @@ public class GameThread extends Thread {
     @Override
     public void run() {
         while (this.running) {
-        	updateGame();
+        	try {
+        		updateGame();
+        	} catch (ConcurrentModificationException cme) {
+        		// ignore
+        	}
         	
             Canvas c = null;
             try {
