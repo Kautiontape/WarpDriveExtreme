@@ -342,39 +342,7 @@ public class GameThread extends Thread {
     		// check if hit asteroid
     		for(Asteroid a2 : asteroids) {
     			if(a != a2 && a.isBounced() && GamePhysics.colliding(c, gp.new Circle(a2.getPos(), a2.getRadius()))) {
-    				a.setHealth(a.getHealth() - a2.getDamage());
-    				a2.setHealth(a2.getHealth() - a.getDamage());
-    				
-    				// https://sites.google.com/site/t3hprogrammer/research/circle-circle-collision-tutorial
-    				Point ca = a.getPos();
-    				Point cb = a2.getPos();
-					double d = Math.sqrt(Math.pow(ca.x - cb.x, 2) + Math.pow(ca.y - cb.y, 2));
-    				
-    				// fix collision
-    				Point mid = new Point((ca.x + cb.x) / 2, (ca.y + cb.y) / 2);
-    				a.setPos(new Point((int)(mid.x + a.getRadius() * (ca.x - cb.x) / d),
-    						(int)(mid.y + a.getRadius() * (ca.y - cb.y) / d)));
-    				a2.setPos(new Point((int)(mid.x + a2.getRadius() * (cb.x - ca.x) / d),
-    						(int)(mid.y + a2.getRadius() * (cb.y - ca.y) / d)));
-    				
-    				// update d for new position
-    				ca = a.getPos();
-    				cb = a2.getPos();
-					d = Math.sqrt(Math.pow(ca.x - cb.x, 2) + Math.pow(ca.y - cb.y, 2));
-    				
-    				// calculate new velocity vectors
-					Vector2D n = new Vector2D((cb.x - ca.x) / d, (cb.y - ca.y) / d);
-					Vector2D va = a.getVelocityVector();
-					Vector2D va2 = a2.getVelocityVector();
-					
-					double p = 2 * (va.dot(n) - va2.dot(n)) / (a.getMass() + a2.getMass());
-					Vector2D wa = va.minus(n.times(p * a.getMass())); 
-					Vector2D wa2 = va2.plus(n.times(p * a2.getMass()));
-
-					// set new headings
-					a.setHeading(wa.angle());
-					a2.setHeading(wa2.angle());
-
+    				Point mid = collideAsteroids(a, a2);
 					addEnergy(ENERGY_PER_BOUNCE, mid);
 					addPoints(POINTS_PER_BOUNCE, mid);
     			}
@@ -406,6 +374,44 @@ public class GameThread extends Thread {
 	    synchronized (asteroids) {
         	asteroids.removeAll(deleteAsteroid);			
 		}
+    }
+    
+    private Point collideAsteroids(Asteroid a, Asteroid b) {
+		a.setHealth(a.getHealth() - b.getDamage());
+		b.setHealth(b.getHealth() - a.getDamage());
+		
+		// https://sites.google.com/site/t3hprogrammer/research/circle-circle-collision-tutorial
+		Point ca = a.getPos();
+		Point cb = b.getPos();
+		double d = Math.sqrt(Math.pow(ca.x - cb.x, 2) + Math.pow(ca.y - cb.y, 2));
+		
+		// fix collision
+		Point mid = new Point((ca.x + cb.x) / 2, (ca.y + cb.y) / 2);
+		a.setPos(new Point((int)(mid.x + a.getRadius() * (ca.x - cb.x) / d),
+				(int)(mid.y + a.getRadius() * (ca.y - cb.y) / d)));
+		b.setPos(new Point((int)(mid.x + b.getRadius() * (cb.x - ca.x) / d),
+				(int)(mid.y + b.getRadius() * (cb.y - ca.y) / d)));
+		
+		// update d for new position
+		ca = a.getPos();
+		cb = b.getPos();
+		d = Math.sqrt(Math.pow(ca.x - cb.x, 2) + Math.pow(ca.y - cb.y, 2));
+		
+		// calculate new velocity vectors
+		Vector2D n = new Vector2D((cb.x - ca.x) / d, (cb.y - ca.y) / d);
+		Vector2D va = a.getVelocityVector();
+		Vector2D va2 = b.getVelocityVector();
+		
+		double p = 2 * (va.dot(n) - va2.dot(n));
+		Vector2D wa = va.minus(n.times(p)); 
+		Vector2D wa2 = va2.plus(n.times(p));
+		// NOTE: Removed mass, since it caused problems
+
+		// set new headings
+		a.setHeading(wa.angle());
+		b.setHeading(wa2.angle());
+		
+		return mid;
     }
     
     public void startShield(Point start) {
