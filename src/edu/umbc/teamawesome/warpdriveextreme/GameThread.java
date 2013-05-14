@@ -12,6 +12,7 @@ import android.app.AlertDialog;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -161,7 +162,7 @@ public class GameThread extends Thread {
 
     private void updateDisplay(Canvas canvas) {
     	if(canvas == null) return;
-        
+            	
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
     	if(gameState == STATE_GAMEOVER)
     	{
@@ -181,13 +182,7 @@ public class GameThread extends Thread {
     				hasPrompt = true;
     				hasEnteredHighScore = true;
 
-    				parentActivity.runOnUiThread(new Runnable() {
-
-    					@Override
-    					public void run() {
-    						promptHighScore();						
-    					}
-    				});
+    				promptHighScore();
     			}
     		}
     	} else if(gameState == STATE_START){
@@ -217,6 +212,7 @@ public class GameThread extends Thread {
     
     private void drawTitle(Canvas canvas) {
     	startGame();
+    	
     	if(true) return;
     	
     	Paint p = new Paint();
@@ -678,29 +674,36 @@ public class GameThread extends Thread {
     
     public void promptHighScore()
     {
-    	AlertDialog.Builder alert = new AlertDialog.Builder(context);
+    	parentActivity.runOnUiThread(new Runnable() {
 
-    	alert.setTitle("New High Score!");
-    	alert.setMessage("Please enter your username.");
+    		@Override
+    		public void run() {
+    			AlertDialog.Builder alert = new AlertDialog.Builder(context);
 
-    	// Set an EditText view to get user input 
-    	final EditText input = new EditText(context);
-    	alert.setView(input);
-    	alert.setCancelable(false);
-    	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-    	public void onClick(DialogInterface dialog, int whichButton) {
-    	  UserPreferences.addHighScore(context, String.valueOf(points), input.getText().toString());
-		  hasPrompt = false;
-    	  }
+    			alert.setTitle("New High Score!");
+    			alert.setMessage("Please enter your username.");
+
+    			// Set an EditText view to get user input 
+    			final EditText input = new EditText(context);
+    			alert.setView(input);
+    			alert.setCancelable(false);
+    			alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+    				public void onClick(DialogInterface dialog, int whichButton) {
+    					UserPreferences.addHighScore(context, String.valueOf(points), input.getText().toString());
+    					hasPrompt = false;
+    				}
+    			});
+
+    			alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+    				public void onClick(DialogInterface dialog, int whichButton) {
+    					hasPrompt = false;
+    				}
+    			});
+
+    			alert.show();
+    		}
     	});
 
-    	alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-    	  public void onClick(DialogInterface dialog, int whichButton) {
-    		  hasPrompt = false;
-    	  }
-    	});
-
-    	alert.show();
     }
  
     
