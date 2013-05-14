@@ -703,7 +703,7 @@ public class GameThread extends Thread {
     public class ExplosionAnimated 
     {
     	
-        private static final int BMP_COLUMNS = 13;
+        private static final int BMP_COLUMNS = 17;
         private int x = 0;
         private int y = 0;
         private Bitmap bmp;
