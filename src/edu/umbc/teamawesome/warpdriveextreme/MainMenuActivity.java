@@ -4,10 +4,12 @@ import java.util.HashMap;
 import java.util.Hashtable;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.app.ListFragment;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
@@ -83,8 +85,15 @@ public class MainMenuActivity extends Activity
 			
 			if(button == newGameButton)
 			{
-	            Intent intent = new Intent(MainMenuActivity.this, MainActivity.class);
-	            startActivity(intent);
+				if(UserPreferences.getShowTutorial(MainMenuActivity.this))
+				{
+					promptTutorial();
+				}
+				else
+				{
+					Intent intent = new Intent(MainMenuActivity.this, MainActivity.class);
+					startActivity(intent);
+				}
 			}
 			else if(button == settingsButton)
 			{
@@ -109,6 +118,27 @@ public class MainMenuActivity extends Activity
 
 		}
 	};
+	
+    public void promptTutorial()
+    {
+		UserPreferences.setShowTutorial(this, false);
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+
+		alert.setTitle("Instructions");
+		alert.setMessage("Defend yourself as you fly through an asteroid field by drawing shields on the screen to deflect them away from your ship, and towards incoming asteroid. " +
+				"But be careful! The energy for your shields only regenerates so quickly. If you manage to successfully deflect one asteroid into another, you can harvest the kinetic" +
+				"energy to give your shield energy a quick boost. Good luck!");
+
+		alert.setCancelable(false);
+		alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int whichButton) {
+	            Intent intent = new Intent(MainMenuActivity.this, MainActivity.class);
+	            startActivity(intent);
+			}
+		});
+
+		alert.show();
+    }
 	
 	@Override
 	protected void onStart() 
