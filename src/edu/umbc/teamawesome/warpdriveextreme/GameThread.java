@@ -3,8 +3,11 @@ package edu.umbc.teamawesome.warpdriveextreme;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 
+import edu.umbc.teamawesome.warpdriveextreme.GamePhysics.Rect;
+
 import math.geom2d.Vector2D;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -49,9 +52,12 @@ public class GameThread extends Thread {
 	private static final int STATE_PLAYING = 1;
 	private static final int STATE_GAMEOVER = 2;
 	
+	private boolean hasPrompt = false;
+	private boolean hasEnteredHighScore = false;
+
 	// game status
 	private int gameState = STATE_START;
-	private int energy = 100, health = 100;
+	private int energy = 100, health = 10;
 	private boolean isDrawingShield = false;
 	private Shield currentShield = null;
 	private GamePhysics.Rect shipBox;
@@ -69,7 +75,8 @@ public class GameThread extends Thread {
 	private Context context;
 //	private Handler handler;
 	private boolean running = false;
-
+	private Activity parentActivity;
+	
 	// sound 
 	private int explosionId;
 	private int shieldId;
@@ -84,12 +91,14 @@ public class GameThread extends Thread {
 	
 	// images
     private Bitmap spaceBitmap;
+    private Bitmap explosionBitmap;
     private Drawable ship;
     private Drawable asteroidDraw;
     int shipWidth = 1, shipHeight = 1;
     int timeFontSize = 12; int energyFontSize = 26;
     int gameoverFontSize = 32; int scoreFontSize = 28;
     int titleFontSize = 38;
+    ExplosionAnimated shipExplosion;
     
     // game bars
     GameBar healthBar = new GameBar(0, Color.GREEN);
@@ -104,6 +113,7 @@ public class GameThread extends Thread {
 
         Resources res = context.getResources();            
         spaceBitmap = BitmapFactory.decodeResource(res, R.drawable.space);
+        explosionBitmap = BitmapFactory.decodeResource(res, R.drawable.explosion);
         ship = res.getDrawable(R.drawable.spaceship);
         shipWidth = ship.getIntrinsicWidth();
         shipHeight = ship.getIntrinsicHeight();
@@ -122,6 +132,16 @@ public class GameThread extends Thread {
         gameoverFontSize = res.getDimensionPixelSize(R.dimen.gameoverFontSize);
         scoreFontSize = res.getDimensionPixelSize(R.dimen.scoreFontSize);
         titleFontSize = res.getDimensionPixelSize(R.dimen.titleFontSize);
+    }
+    
+    public void setParentActivity(Activity parent)
+    {
+    	this.parentActivity = parent;
+    }
+    
+    public Activity getParentActivity()
+    {
+    	return parentActivity;
     }
     
     private void updateGame() {
@@ -143,12 +163,33 @@ public class GameThread extends Thread {
     	if(canvas == null) return;
         
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
-    	if(gameState == STATE_GAMEOVER) {
-    		drawGameOver(canvas);
-    		if(UserPreferences.checkHighScore(context, String.valueOf(points)))
+    	if(gameState == STATE_GAMEOVER)
+    	{
+    		if(shipExplosion == null)
     		{
-    			UserPreferences.addHighScore(context, String.valueOf(points), "User");
-    			//promptHighScore();
+    			shipExplosion = new ExplosionAnimated(explosionBitmap);
+    		}
+    		else if(!shipExplosion.isFinished())
+    		{
+    			shipExplosion.draw(canvas);
+    		}
+    		else
+    		{
+
+    			drawGameOver(canvas);
+    			if(UserPreferences.checkHighScore(context, String.valueOf(time)) && hasPrompt == false && hasEnteredHighScore == false)
+    			{
+    				hasPrompt = true;
+    				hasEnteredHighScore = true;
+
+    				parentActivity.runOnUiThread(new Runnable() {
+
+    					@Override
+    					public void run() {
+    						promptHighScore();						
+    					}
+    				});
+    			}
     		}
     	} else if(gameState == STATE_START){
     		drawTitle(canvas);
@@ -162,6 +203,7 @@ public class GameThread extends Thread {
     }
     
     private void startGame() {
+    	hasEnteredHighScore = false;
     	frame = 0;
     	time = 0;
     	points = 0;
@@ -171,6 +213,7 @@ public class GameThread extends Thread {
     	asteroids = new ArrayList<Asteroid>();
     	shields = new ArrayList<Shield>();
     	gameState = STATE_PLAYING;
+    	shipExplosion = null;
     }
     
     private void drawTitle(Canvas canvas) {
@@ -212,6 +255,7 @@ public class GameThread extends Thread {
         
         // space
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
+        
         
         // ship
         canvas.save();
@@ -373,6 +417,12 @@ public class GameThread extends Thread {
     			deleteAsteroid.add(a);
     			
     			playThud();
+    			
+    			if(health <= 0)
+    			{
+    				playExplosion();
+    			}
+    			
     			continue;
     		}
     		
@@ -637,19 +687,62 @@ public class GameThread extends Thread {
     	// Set an EditText view to get user input 
     	final EditText input = new EditText(context);
     	alert.setView(input);
-
+    	alert.setCancelable(false);
     	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
     	public void onClick(DialogInterface dialog, int whichButton) {
-    	  UserPreferences.addHighScore(context, String.valueOf(time), input.getText().toString());
+    	  UserPreferences.addHighScore(context, String.valueOf(points), input.getText().toString());
+		  hasPrompt = false;
     	  }
     	});
 
     	alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
     	  public void onClick(DialogInterface dialog, int whichButton) {
-    	    // Canceled.
+    		  hasPrompt = false;
     	  }
     	});
 
     	alert.show();
     }
+    
+    public class ExplosionAnimated 
+    {
+    	
+        private static final int BMP_COLUMNS = 17;
+        private int x = 0;
+        private int y = 0;
+        private Bitmap bmp;
+        private int currentFrame = 0;
+        private int width;
+        private int height;
+  
+        public ExplosionAnimated(Bitmap bmp) 
+        {
+              this.bmp = bmp;
+              this.width = bmp.getWidth() / BMP_COLUMNS;
+              this.height = bmp.getHeight();
+        }
+  
+        public boolean isFinished()
+        {
+        	return (currentFrame >= BMP_COLUMNS);
+        }
+        
+        private void update() 
+        {
+              currentFrame += 1;
+        }
+  
+        public void draw(Canvas canvas) 
+        {
+              update();
+              int srcX = currentFrame * width;
+              int srcY = 1 * height;
+              android.graphics.Rect src = new android.graphics.Rect(srcX, srcY, srcX + width, srcY + height);
+              android.graphics.Rect dst = new android.graphics.Rect(x, y, x + width, y + height);
+              canvas.drawBitmap(bmp, src, dst, null);
+        }
+    	
+    }
+ 
+    
 }

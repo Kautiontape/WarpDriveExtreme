@@ -71,8 +71,15 @@ public class MainActivity extends Activity implements OnClickListener
 	private Runnable frameUpdate = new Runnable() {		
 		@Override
 		synchronized public void run() {
+			GameCanvas canvas = ((GameCanvas)findViewById(R.id.canvas));
+			
+			if(canvas.getParentActivity() == null)
+			{
+				canvas.setParentActivity(MainActivity.this);
+			}
+			
 			frame.removeCallbacks(frameUpdate);
-			((GameCanvas)findViewById(R.id.canvas)).invalidate();
+			canvas.invalidate();
 			frame.postDelayed(frameUpdate, FRAME_RATE);
 		}
 	};
