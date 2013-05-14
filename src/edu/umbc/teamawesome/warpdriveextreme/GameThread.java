@@ -41,6 +41,7 @@ public class GameThread extends Thread {
 	private static final int SHIELD_COLOR = Color.CYAN;
 	private static final double TIME_MAX_SPEED = 30.0;
 //	private static final double GAIN_EVENT_SHOW_TIME = 0.5;
+	private static final double ASTEROID_ROTATE = 1.0 / (double)(Asteroid.SEC_PER_ROTATE * FRAMES_PER_SECOND / (2.0*Math.PI));
 	
 	// scoring
 	private static final int POINTS_PER_BOUNCE = 500;
@@ -216,6 +217,9 @@ public class GameThread extends Thread {
     }
     
     private void drawTitle(Canvas canvas) {
+    	startGame();
+    	if(true) return;
+    	
     	Paint p = new Paint();
         
         canvas.save();
@@ -264,19 +268,20 @@ public class GameThread extends Thread {
         int asteroidHeight = asteroidDraw.getIntrinsicHeight();
         for(Asteroid a : asteroids) {
         	canvas.save();
-        	float scale = (float)a.getRadius() / Asteroid.MAX_RADIUS;
-        	canvas.scale(scale, scale, a.getPos().x, a.getPos().y);
-        	asteroidDraw.setBounds(a.getPos().x - (asteroidWidth / 2), a.getPos().y - (asteroidHeight / 2),
-        			a.getPos().x + (asteroidWidth / 2), a.getPos().y + (asteroidHeight / 2));
+        	float scale = (float)a.getRadius() / Asteroid.getMaxRadius();
+        	canvas.rotate((float)Math.toDegrees(a.getRotate()), (float)a.getPos().x, (float)a.getPos().y);
+        	asteroidDraw.setBounds((int)(a.getPos().x - (scale*asteroidHeight / 2)), 
+        			(int)(a.getPos().y - (scale*asteroidWidth / 2)),
+        			(int)(a.getPos().x + (scale*asteroidHeight / 2)),
+        			(int)(a.getPos().y + (scale*asteroidWidth / 2)));
         	asteroidDraw.draw(canvas);
         	canvas.restore();
 
-        	/*// hit box on meteors
-        	p.setColor(Color.RED);
+        	// hit box on meteors
+        	/* p.setColor(Color.RED);
         	p.setAlpha(50);
         	canvas.drawCircle((float)a.getPos().x, (float)a.getPos().y, (float)a.getRadius(), p);
-        	p.setAlpha(255);
-        	*/
+        	p.setAlpha(255); */
         }
         
         // shields
@@ -367,7 +372,7 @@ public class GameThread extends Thread {
     }
     
     public void createAsteroid() {
-    	double radius = Math.min(0.5 + Math.random()*Asteroid.MAX_RADIUS, Asteroid.MAX_RADIUS);
+    	double radius = Math.min(0.5 + Math.random()*Asteroid.getMaxRadius(), Asteroid.getMaxRadius());
     	int startX = (int)(Math.random() * (canvasWidth + 1));
     	int startY = (int)-radius;
     	int endX = (int)(Math.random() * (canvasWidth + 1));
@@ -390,6 +395,8 @@ public class GameThread extends Thread {
     		Point oldPos = a.getPos();
     		a.setPos(a.getNextPos());    		
     		GamePhysics.Circle c = gp.new Circle(a.getPos(), a.getRadius());
+    		
+    		a.rotate(ASTEROID_ROTATE);
     		
     		// movement vector for circle
     		GamePhysics.Circle c_vector = gp.new Circle(
@@ -513,8 +520,8 @@ public class GameThread extends Thread {
     		this.currentShield.setEnd(update);
     		
     		if(energy - currentShield.getCost(canvasWidth) <= 0) {
-    			energy = 0;
     			finishShield(update);
+    			energy = 0;
     		}
     	}
     }
@@ -602,6 +609,8 @@ public class GameThread extends Thread {
             canvasWidth = width;
             canvasHeight = height;
             spaceBitmap = Bitmap.createScaledBitmap(spaceBitmap, width, height, true);
+            Asteroid.setMaxRadius((int)Math.min(asteroidDraw.getIntrinsicHeight() / 2.0, 
+            		asteroidDraw.getIntrinsicWidth() / 2.0));
             updateShipSize();
         }
     }
