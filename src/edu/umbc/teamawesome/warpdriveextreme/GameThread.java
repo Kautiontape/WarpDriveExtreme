@@ -56,7 +56,7 @@ public class GameThread extends Thread {
 
 	// game status
 	private int gameState = STATE_START;
-	private int energy = 100, health = 100;
+	private int energy = 100, health = 10;
 	private boolean isDrawingShield = false;
 	private Shield currentShield = null;
 	private GamePhysics.Rect shipBox;
@@ -90,12 +90,14 @@ public class GameThread extends Thread {
 	
 	// images
     private Bitmap spaceBitmap;
+    private Bitmap explosionBitmap;
     private Drawable ship;
     private Drawable asteroidDraw;
     int shipWidth = 1, shipHeight = 1;
     int timeFontSize = 12; int energyFontSize = 26;
     int gameoverFontSize = 32; int scoreFontSize = 28;
     int titleFontSize = 38;
+    ExplosionAnimated shipExplosion;
     
     // game bars
     GameBar healthBar = new GameBar(0, Color.GREEN);
@@ -110,6 +112,7 @@ public class GameThread extends Thread {
 
         Resources res = context.getResources();            
         spaceBitmap = BitmapFactory.decodeResource(res, R.drawable.space);
+        explosionBitmap = BitmapFactory.decodeResource(res, R.drawable.explosion);
         ship = res.getDrawable(R.drawable.spaceship);
         shipWidth = ship.getIntrinsicWidth();
         shipHeight = ship.getIntrinsicHeight();
@@ -159,20 +162,33 @@ public class GameThread extends Thread {
     	if(canvas == null) return;
         
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
-    	if(gameState == STATE_GAMEOVER) {
-    		drawGameOver(canvas);
-    		if(UserPreferences.checkHighScore(context, String.valueOf(time)) && hasPrompt == false && hasEnteredHighScore == false)
+    	if(gameState == STATE_GAMEOVER)
+    	{
+    		if(shipExplosion == null)
     		{
-    			hasPrompt = true;
-    			hasEnteredHighScore = true;
-    			
-    			parentActivity.runOnUiThread(new Runnable() {
-					
-					@Override
-					public void run() {
-						promptHighScore();						
-					}
-				});
+    			shipExplosion = new ExplosionAnimated(explosionBitmap);
+    		}
+    		else if(!shipExplosion.isFinished())
+    		{
+    			shipExplosion.draw(canvas);
+    		}
+    		else
+    		{
+
+    			drawGameOver(canvas);
+    			if(UserPreferences.checkHighScore(context, String.valueOf(time)) && hasPrompt == false && hasEnteredHighScore == false)
+    			{
+    				hasPrompt = true;
+    				hasEnteredHighScore = true;
+
+    				parentActivity.runOnUiThread(new Runnable() {
+
+    					@Override
+    					public void run() {
+    						promptHighScore();						
+    					}
+    				});
+    			}
     		}
     	} else if(gameState == STATE_START){
     		drawTitle(canvas);
@@ -196,6 +212,7 @@ public class GameThread extends Thread {
     	asteroids = new ArrayList<Asteroid>();
     	shields = new ArrayList<Shield>();
     	gameState = STATE_PLAYING;
+    	shipExplosion = null;
     }
     
     private void drawTitle(Canvas canvas) {
@@ -234,6 +251,7 @@ public class GameThread extends Thread {
         
         // space
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
+        
         
         // ship
         canvas.save();
@@ -673,50 +691,43 @@ public class GameThread extends Thread {
     	alert.show();
     }
     
-    public class ExplosionAnimated {
+    public class ExplosionAnimated 
+    {
     	
-    	private final String TAG = ExplosionAnimated.class.getSimpleName();
-
-    	private Bitmap bitmap;		// the animation sequence
-    	private android.graphics.Rect sourceRect;	// the rectangle to be drawn from the animation bitmap
-    	private int frameNr;		// number of frames in animation
-    	private int currentFrame;	// the current frame
-    	private long frameTicker;	// the time of the last frame update
-    	private int framePeriod;	// milliseconds between each frame (1000/fps)
-    	
-    	private int spriteWidth;	// the width of the sprite to calculate the cut out rectangle
-    	private int spriteHeight;	// the height of the sprite
-    	
-    	private int x;				// the X coordinate of the object (top left of the image)
-    	private int y;				// the Y coordinate of the object (top left of the image)
-
-    	public ExplosionAnimated(Bitmap bitmap, int x, int y, int width, int height, int fps, int frameCount) {
-    		this.bitmap = bitmap;
-    		this.x = x;
-    		this.y = y;
-    		currentFrame = 0;
-    		frameNr = frameCount;
-    		spriteWidth = bitmap.getWidth() / frameCount;
-    		spriteHeight = bitmap.getHeight();
-    		sourceRect = new android.graphics.Rect(0, 0, spriteWidth, spriteHeight);
-    		framePeriod = 1000 / fps;
-    		frameTicker = 0l;
-    	}
-
-    	public void update(long gameTime) {
-    		if (gameTime > frameTicker + framePeriod) {
-    			frameTicker = gameTime;
-    			// increment the frame
-    			currentFrame++;
-    			if (currentFrame >= frameNr) {
-    				currentFrame = 0;
-    			}
-    		}
-    		// define the rectangle to cut out sprite
-    		this.sourceRect.left = currentFrame * spriteWidth;
-    		this.sourceRect.right = this.sourceRect.left + spriteWidth;
-    	}
-
+        private static final int BMP_COLUMNS = 13;
+        private int x = 0;
+        private int y = 0;
+        private Bitmap bmp;
+        private int currentFrame = 0;
+        private int width;
+        private int height;
+  
+        public ExplosionAnimated(Bitmap bmp) 
+        {
+              this.bmp = bmp;
+              this.width = bmp.getWidth() / BMP_COLUMNS;
+              this.height = bmp.getHeight();
+        }
+  
+        public boolean isFinished()
+        {
+        	return (currentFrame >= BMP_COLUMNS);
+        }
+        
+        private void update() 
+        {
+              currentFrame += 1;
+        }
+  
+        public void draw(Canvas canvas) 
+        {
+              update();
+              int srcX = currentFrame * width;
+              int srcY = 1 * height;
+              android.graphics.Rect src = new android.graphics.Rect(srcX, srcY, srcX + width, srcY + height);
+              android.graphics.Rect dst = new android.graphics.Rect(x, y, x + width, y + height);
+              canvas.drawBitmap(bmp, src, dst, null);
+        }
     	
     }
  
