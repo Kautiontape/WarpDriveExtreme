@@ -31,6 +31,10 @@ public class Asteroid {
 		return new Point(x, y);
     }
     
+    public void rotate(double radians) {
+    	rotate = (rotate + radians) % (2*Math.PI);      	
+    }
+    
     public double getMass() {
     	return (4.0/3)*Math.PI * radius*radius;
     }

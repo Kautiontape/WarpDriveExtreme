@@ -38,6 +38,7 @@ public class GameThread extends Thread {
 	private static final int SHIELD_COLOR = Color.CYAN;
 	private static final double TIME_MAX_SPEED = 30.0;
 //	private static final double GAIN_EVENT_SHOW_TIME = 0.5;
+	private static final double ASTEROID_ROTATE = 1.0 / (double)(Asteroid.SEC_PER_ROTATE * FRAMES_PER_SECOND / (2.0*Math.PI));
 	
 	// scoring
 	private static final int POINTS_PER_BOUNCE = 500;
@@ -144,9 +145,9 @@ public class GameThread extends Thread {
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
     	if(gameState == STATE_GAMEOVER) {
     		drawGameOver(canvas);
-    		if(UserPreferences.checkHighScore(context, String.valueOf(time)))
+    		if(UserPreferences.checkHighScore(context, String.valueOf(points)))
     		{
-    			UserPreferences.addHighScore(context, String.valueOf(time), "User");
+    			UserPreferences.addHighScore(context, String.valueOf(points), "User");
     			//promptHighScore();
     		}
     	} else if(gameState == STATE_START){
@@ -173,6 +174,9 @@ public class GameThread extends Thread {
     }
     
     private void drawTitle(Canvas canvas) {
+    	startGame();
+    	if(true) return;
+    	
     	Paint p = new Paint();
         
         canvas.save();
@@ -221,18 +225,18 @@ public class GameThread extends Thread {
         for(Asteroid a : asteroids) {
         	canvas.save();
         	float scale = (float)a.getRadius() / Asteroid.MAX_RADIUS;
+        	canvas.rotate((float)Math.toDegrees(a.getRotate()), (float)a.getPos().x, (float)a.getPos().y);
         	canvas.scale(scale, scale, a.getPos().x, a.getPos().y);
         	asteroidDraw.setBounds(a.getPos().x - (asteroidWidth / 2), a.getPos().y - (asteroidHeight / 2),
         			a.getPos().x + (asteroidWidth / 2), a.getPos().y + (asteroidHeight / 2));
         	asteroidDraw.draw(canvas);
         	canvas.restore();
 
-        	/*// hit box on meteors
+        	// hit box on meteors
         	p.setColor(Color.RED);
         	p.setAlpha(50);
         	canvas.drawCircle((float)a.getPos().x, (float)a.getPos().y, (float)a.getRadius(), p);
         	p.setAlpha(255);
-        	*/
         }
         
         // shields
@@ -346,6 +350,8 @@ public class GameThread extends Thread {
     		Point oldPos = a.getPos();
     		a.setPos(a.getNextPos());    		
     		GamePhysics.Circle c = gp.new Circle(a.getPos(), a.getRadius());
+    		
+    		a.rotate(ASTEROID_ROTATE);
     		
     		// movement vector for circle
     		GamePhysics.Circle c_vector = gp.new Circle(
@@ -463,8 +469,8 @@ public class GameThread extends Thread {
     		this.currentShield.setEnd(update);
     		
     		if(energy - currentShield.getCost(canvasWidth) <= 0) {
-    			energy = 0;
     			finishShield(update);
+    			energy = 0;
     		}
     	}
     }
