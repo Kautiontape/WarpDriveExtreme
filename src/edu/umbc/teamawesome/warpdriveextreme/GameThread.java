@@ -167,7 +167,7 @@ public class GameThread extends Thread {
     	{
     		if(shipExplosion == null)
     		{
-    			shipExplosion = new ExplosionAnimated(explosionBitmap);
+    			shipExplosion = new ExplosionAnimated(explosionBitmap, shipBox);
     		}
     		else if(!shipExplosion.isFinished())
     		{
@@ -175,7 +175,6 @@ public class GameThread extends Thread {
     		}
     		else
     		{
-
     			drawGameOver(canvas);
     			if(UserPreferences.checkHighScore(context, String.valueOf(time)) && hasPrompt == false && hasEnteredHighScore == false)
     			{
@@ -702,46 +701,6 @@ public class GameThread extends Thread {
     	});
 
     	alert.show();
-    }
-    
-    public class ExplosionAnimated 
-    {
-    	
-        private static final int BMP_COLUMNS = 17;
-        private int x = 0;
-        private int y = 0;
-        private Bitmap bmp;
-        private int currentFrame = 0;
-        private int width;
-        private int height;
-  
-        public ExplosionAnimated(Bitmap bmp) 
-        {
-              this.bmp = bmp;
-              this.width = bmp.getWidth() / BMP_COLUMNS;
-              this.height = bmp.getHeight();
-        }
-  
-        public boolean isFinished()
-        {
-        	return (currentFrame >= BMP_COLUMNS);
-        }
-        
-        private void update() 
-        {
-              currentFrame += 1;
-        }
-  
-        public void draw(Canvas canvas) 
-        {
-              update();
-              int srcX = currentFrame * width;
-              int srcY = 1 * height;
-              android.graphics.Rect src = new android.graphics.Rect(srcX, srcY, srcX + width, srcY + height);
-              android.graphics.Rect dst = new android.graphics.Rect(x, y, x + width, y + height);
-              canvas.drawBitmap(bmp, src, dst, null);
-        }
-    	
     }
  
     
