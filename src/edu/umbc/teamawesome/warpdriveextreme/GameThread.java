@@ -3,8 +3,11 @@ package edu.umbc.teamawesome.warpdriveextreme;
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
 
+import edu.umbc.teamawesome.warpdriveextreme.GamePhysics.Rect;
+
 import math.geom2d.Vector2D;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -48,6 +51,9 @@ public class GameThread extends Thread {
 	private static final int STATE_PLAYING = 1;
 	private static final int STATE_GAMEOVER = 2;
 	
+	private boolean hasPrompt = false;
+	private boolean hasEnteredHighScore = false;
+
 	// game status
 	private int gameState = STATE_START;
 	private int energy = 100, health = 100;
@@ -68,7 +74,8 @@ public class GameThread extends Thread {
 	private Context context;
 //	private Handler handler;
 	private boolean running = false;
-
+	private Activity parentActivity;
+	
 	// sound 
 	private int explosionId;
 	private int shieldId;
@@ -123,6 +130,16 @@ public class GameThread extends Thread {
         titleFontSize = res.getDimensionPixelSize(R.dimen.titleFontSize);
     }
     
+    public void setParentActivity(Activity parent)
+    {
+    	this.parentActivity = parent;
+    }
+    
+    public Activity getParentActivity()
+    {
+    	return parentActivity;
+    }
+    
     private void updateGame() {
     	if(health <= 0) {
     		gameState = STATE_GAMEOVER;
@@ -144,10 +161,18 @@ public class GameThread extends Thread {
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
     	if(gameState == STATE_GAMEOVER) {
     		drawGameOver(canvas);
-    		if(UserPreferences.checkHighScore(context, String.valueOf(time)))
+    		if(UserPreferences.checkHighScore(context, String.valueOf(time)) && hasPrompt == false && hasEnteredHighScore == false)
     		{
-    			UserPreferences.addHighScore(context, String.valueOf(time), "User");
-    			//promptHighScore();
+    			hasPrompt = true;
+    			hasEnteredHighScore = true;
+    			
+    			parentActivity.runOnUiThread(new Runnable() {
+					
+					@Override
+					public void run() {
+						promptHighScore();						
+					}
+				});
     		}
     	} else if(gameState == STATE_START){
     		drawTitle(canvas);
@@ -161,6 +186,7 @@ public class GameThread extends Thread {
     }
     
     private void startGame() {
+    	hasEnteredHighScore = false;
     	frame = 0;
     	time = 0;
     	points = 0;
@@ -366,6 +392,12 @@ public class GameThread extends Thread {
     			deleteAsteroid.add(a);
     			
     			playThud();
+    			
+    			if(health <= 0)
+    			{
+    				playExplosion();
+    			}
+    			
     			continue;
     		}
     		
@@ -624,19 +656,69 @@ public class GameThread extends Thread {
     	// Set an EditText view to get user input 
     	final EditText input = new EditText(context);
     	alert.setView(input);
-
+    	alert.setCancelable(false);
     	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
     	public void onClick(DialogInterface dialog, int whichButton) {
-    	  UserPreferences.addHighScore(context, String.valueOf(time), input.getText().toString());
+    	  UserPreferences.addHighScore(context, String.valueOf(points), input.getText().toString());
+		  hasPrompt = false;
     	  }
     	});
 
     	alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
     	  public void onClick(DialogInterface dialog, int whichButton) {
-    	    // Canceled.
+    		  hasPrompt = false;
     	  }
     	});
 
     	alert.show();
     }
+    
+    public class ExplosionAnimated {
+    	
+    	private final String TAG = ExplosionAnimated.class.getSimpleName();
+
+    	private Bitmap bitmap;		// the animation sequence
+    	private android.graphics.Rect sourceRect;	// the rectangle to be drawn from the animation bitmap
+    	private int frameNr;		// number of frames in animation
+    	private int currentFrame;	// the current frame
+    	private long frameTicker;	// the time of the last frame update
+    	private int framePeriod;	// milliseconds between each frame (1000/fps)
+    	
+    	private int spriteWidth;	// the width of the sprite to calculate the cut out rectangle
+    	private int spriteHeight;	// the height of the sprite
+    	
+    	private int x;				// the X coordinate of the object (top left of the image)
+    	private int y;				// the Y coordinate of the object (top left of the image)
+
+    	public ExplosionAnimated(Bitmap bitmap, int x, int y, int width, int height, int fps, int frameCount) {
+    		this.bitmap = bitmap;
+    		this.x = x;
+    		this.y = y;
+    		currentFrame = 0;
+    		frameNr = frameCount;
+    		spriteWidth = bitmap.getWidth() / frameCount;
+    		spriteHeight = bitmap.getHeight();
+    		sourceRect = new android.graphics.Rect(0, 0, spriteWidth, spriteHeight);
+    		framePeriod = 1000 / fps;
+    		frameTicker = 0l;
+    	}
+
+    	public void update(long gameTime) {
+    		if (gameTime > frameTicker + framePeriod) {
+    			frameTicker = gameTime;
+    			// increment the frame
+    			currentFrame++;
+    			if (currentFrame >= frameNr) {
+    				currentFrame = 0;
+    			}
+    		}
+    		// define the rectangle to cut out sprite
+    		this.sourceRect.left = currentFrame * spriteWidth;
+    		this.sourceRect.right = this.sourceRect.left + spriteWidth;
+    	}
+
+    	
+    }
+ 
+    
 }

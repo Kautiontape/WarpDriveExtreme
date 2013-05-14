@@ -1,5 +1,6 @@
 package edu.umbc.teamawesome.warpdriveextreme;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Point;
 import android.os.Handler;
@@ -12,6 +13,7 @@ public class GameCanvas extends SurfaceView implements SurfaceHolder.Callback {
 	private static SurfaceHolder holder;
 	private static Handler handler;
 	private GameThread thread;
+	private Activity parentActivity;
 	
 	public GameCanvas(Context context, AttributeSet attrs) {
 		super(context, attrs);
@@ -20,9 +22,19 @@ public class GameCanvas extends SurfaceView implements SurfaceHolder.Callback {
 		holder.addCallback(this);
 
 		thread = new GameThread(holder, context, handler);
-		
 		setFocusable(true); // make sure we get key events
 	}
+	
+    public void setParentActivity(Activity parent)
+    {
+    	this.parentActivity = parent;
+		thread.setParentActivity(parentActivity);
+    }
+    
+    public Activity getParentActivity()
+    {
+    	return parentActivity;
+    }
 	
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
