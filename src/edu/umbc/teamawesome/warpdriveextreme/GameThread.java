@@ -5,8 +5,10 @@ import java.util.ConcurrentModificationException;
 
 import math.geom2d.Vector2D;
 
+import android.app.AlertDialog;
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -15,9 +17,13 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
+import android.media.AudioManager;
+import android.media.SoundPool;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.SurfaceHolder;
+import android.widget.EditText;
 
 @SuppressLint("DefaultLocale")
 public class GameThread extends Thread {
@@ -62,6 +68,15 @@ public class GameThread extends Thread {
 	private Context context;
 //	private Handler handler;
 	private boolean running = false;
+
+	// sound 
+	private int explosionId;
+	private int shieldId;
+	private int thudId;
+	private int crunchId;
+	private SoundPool mSoundPool;
+	private AudioManager mAudioManager;
+
 	private GamePhysics gp;
 	private ArrayList<EnergyGainEvent> gainEvents = new ArrayList<EnergyGainEvent>();
 	private ArrayList<PointGainEvent> pointEvents = new ArrayList<PointGainEvent>();
@@ -92,6 +107,14 @@ public class GameThread extends Thread {
         shipWidth = ship.getIntrinsicWidth();
         shipHeight = ship.getIntrinsicHeight();
         
+		mSoundPool = new SoundPool(10, AudioManager.STREAM_MUSIC, 0);
+		mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+
+		explosionId = mSoundPool.load(context, R.raw.explosion, 1);
+		shieldId = mSoundPool.load(context, R.raw.zap, 1);
+		thudId = mSoundPool.load(context, R.raw.thud, 1);
+		crunchId = mSoundPool.load(context, R.raw.crunch, 1);
+
         asteroidDraw = res.getDrawable(R.drawable.asteroid);
         timeFontSize = res.getDimensionPixelSize(R.dimen.timeFontSize);
         energyFontSize = res.getDimensionPixelSize(R.dimen.energyFontSize);
@@ -121,6 +144,11 @@ public class GameThread extends Thread {
         canvas.drawBitmap(spaceBitmap, 0, 0, null);
     	if(gameState == STATE_GAMEOVER) {
     		drawGameOver(canvas);
+    		if(UserPreferences.checkHighScore(context, String.valueOf(time)))
+    		{
+    			UserPreferences.addHighScore(context, String.valueOf(time), "User");
+    			//promptHighScore();
+    		}
     	} else if(gameState == STATE_START){
     		drawTitle(canvas);
     	} else {
@@ -336,6 +364,8 @@ public class GameThread extends Thread {
     		if(GamePhysics.colliding(c, shipBox)) {
     			health -= a.getDamage();
     			deleteAsteroid.add(a);
+    			
+    			playThud();
     			continue;
     		}
     		
@@ -345,6 +375,8 @@ public class GameThread extends Thread {
     				Point mid = collideAsteroids(a, a2);
 					addEnergy(ENERGY_PER_BOUNCE, mid);
 					addPoints(POINTS_PER_BOUNCE, mid);
+					
+					playCrunch();
     			}
     		}
     		
@@ -364,6 +396,8 @@ public class GameThread extends Thread {
 					
 					addEnergy(ENERGY_PER_BLOCK, c.getC());
 					addPoints(POINTS_PER_BOUNCE, c.getC());
+					
+					playShield();
     			}
     		}
 	    	synchronized (shields) {
@@ -530,5 +564,79 @@ public class GameThread extends Thread {
 	        int shipBottom = canvasHeight - 20;
 	        shipBox = gp.new Rect(shipLeft, shipTop, shipRight, shipBottom);
     	}
+    }
+    
+    public void playExplosion()
+    {
+		float streamVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		streamVolume = streamVolume / mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+		if(UserPreferences.getSoundEnabled(context))
+		{
+			mSoundPool.play(explosionId, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
+		}
+
+    }
+    
+    public void playShield()
+    {
+		float streamVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		streamVolume = streamVolume / mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+		if(UserPreferences.getSoundEnabled(context))
+		{
+			mSoundPool.play(shieldId, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
+		}
+
+    }
+    
+    public void playThud()
+    {
+		float streamVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		streamVolume = streamVolume / mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+		if(UserPreferences.getSoundEnabled(context))
+		{
+			mSoundPool.play(thudId, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
+		}
+
+    }
+    
+    public void playCrunch()
+    {
+		float streamVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+		streamVolume = streamVolume / mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+
+		if(UserPreferences.getSoundEnabled(context))
+		{
+			mSoundPool.play(crunchId, streamVolume / 3, streamVolume / 3, 1, 0, 1f);
+		}
+
+    }
+    
+    public void promptHighScore()
+    {
+    	AlertDialog.Builder alert = new AlertDialog.Builder(context);
+
+    	alert.setTitle("New High Score!");
+    	alert.setMessage("Please enter your username.");
+
+    	// Set an EditText view to get user input 
+    	final EditText input = new EditText(context);
+    	alert.setView(input);
+
+    	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+    	public void onClick(DialogInterface dialog, int whichButton) {
+    	  UserPreferences.addHighScore(context, String.valueOf(time), input.getText().toString());
+    	  }
+    	});
+
+    	alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+    	  public void onClick(DialogInterface dialog, int whichButton) {
+    	    // Canceled.
+    	  }
+    	});
+
+    	alert.show();
     }
 }
