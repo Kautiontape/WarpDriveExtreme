@@ -3,7 +3,10 @@ package edu.umbc.teamawesome.warpdriveextreme;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Dictionary;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import android.content.Context;
@@ -66,15 +69,8 @@ public class UserPreferences
 	{
 		ArrayList<String> highScores = new ArrayList<String>(getHighScores(ctx));
 		highScores.add(newScore + ":" + user);
-		Collections.sort(highScores);
-		Collections.reverse(highScores);
-		
-		if(highScores.size() > 10)
-		{
-			highScores.remove(highScores.size() - 1);
-		}
-		
-		setHighScores(ctx, new HashSet<String>(highScores));
+				
+		setHighScores(ctx, new HashSet<String>(getSortedHighScores(highScores)));
 	}
 	
 	public static boolean checkHighScore(Context ctx, String score)
@@ -99,6 +95,45 @@ public class UserPreferences
 		return false;
 	}
 	
+	private static ArrayList<String> getSortedHighScores(ArrayList<String> highScores)
+	{
+		HashMap<String, String> map = new HashMap<String, String>();
+
+		for(String score:highScores)
+		{
+			map.put(score.split(":")[0], score.split(":")[1]);
+		}
+		
+		ArrayList<String> scoreKeys = new ArrayList<String>(map.keySet());
+		
+		Collections.sort(scoreKeys, new Comparator<String>() {
+
+			@Override
+			public int compare(String lhs, String rhs) {
+				if(Integer.valueOf(lhs) < Integer.valueOf(rhs))
+					return -1;
+				else if(Integer.valueOf(lhs) > Integer.valueOf(rhs))
+					return 1;
+				return 0;
+			}
+		});
+		Collections.reverse(scoreKeys);
+		
+		if(scoreKeys.size() > 10)
+		{
+			scoreKeys.remove(scoreKeys.size() - 1);
+		}
+		
+		highScores = new ArrayList<String>();
+		
+		for(String score:scoreKeys)
+		{
+			highScores.add(score + ":" + map.get(score));
+		}
+
+		return highScores;
+	}
+	
 	private static void setHighScores(Context ctx, Set<String> highScores)
 	{
 		SharedPreferences prefs = ctx.getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -110,10 +145,8 @@ public class UserPreferences
 	{
 		SharedPreferences prefs = ctx.getApplicationContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 		ArrayList<String> highScores = new ArrayList<String>(prefs.getStringSet(kHighScoreKey, new HashSet<String>()));
-		Collections.sort(highScores);
-		Collections.reverse(highScores);
 
-		return highScores;
+		return getSortedHighScores(highScores);
 	}
 	
 }
