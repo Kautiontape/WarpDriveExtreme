@@ -224,19 +224,20 @@ public class GameThread extends Thread {
         int asteroidHeight = asteroidDraw.getIntrinsicHeight();
         for(Asteroid a : asteroids) {
         	canvas.save();
-        	float scale = (float)a.getRadius() / Asteroid.MAX_RADIUS;
+        	float scale = (float)a.getRadius() / Asteroid.getMaxRadius();
         	canvas.rotate((float)Math.toDegrees(a.getRotate()), (float)a.getPos().x, (float)a.getPos().y);
-        	canvas.scale(scale, scale, a.getPos().x, a.getPos().y);
-        	asteroidDraw.setBounds(a.getPos().x - (asteroidWidth / 2), a.getPos().y - (asteroidHeight / 2),
-        			a.getPos().x + (asteroidWidth / 2), a.getPos().y + (asteroidHeight / 2));
+        	asteroidDraw.setBounds((int)(a.getPos().x - (scale*asteroidHeight / 2)), 
+        			(int)(a.getPos().y - (scale*asteroidWidth / 2)),
+        			(int)(a.getPos().x + (scale*asteroidHeight / 2)),
+        			(int)(a.getPos().y + (scale*asteroidWidth / 2)));
         	asteroidDraw.draw(canvas);
         	canvas.restore();
 
         	// hit box on meteors
-        	p.setColor(Color.RED);
+        	/* p.setColor(Color.RED);
         	p.setAlpha(50);
         	canvas.drawCircle((float)a.getPos().x, (float)a.getPos().y, (float)a.getRadius(), p);
-        	p.setAlpha(255);
+        	p.setAlpha(255); */
         }
         
         // shields
@@ -327,7 +328,7 @@ public class GameThread extends Thread {
     }
     
     public void createAsteroid() {
-    	double radius = Math.min(0.5 + Math.random()*Asteroid.MAX_RADIUS, Asteroid.MAX_RADIUS);
+    	double radius = Math.min(0.5 + Math.random()*Asteroid.getMaxRadius(), Asteroid.getMaxRadius());
     	int startX = (int)(Math.random() * (canvasWidth + 1));
     	int startY = (int)-radius;
     	int endX = (int)(Math.random() * (canvasWidth + 1));
@@ -558,6 +559,8 @@ public class GameThread extends Thread {
             canvasWidth = width;
             canvasHeight = height;
             spaceBitmap = Bitmap.createScaledBitmap(spaceBitmap, width, height, true);
+            Asteroid.setMaxRadius((int)Math.min(asteroidDraw.getIntrinsicHeight() / 2.0, 
+            		asteroidDraw.getIntrinsicWidth() / 2.0));
             updateShipSize();
         }
     }

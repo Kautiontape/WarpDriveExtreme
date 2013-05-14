@@ -4,12 +4,13 @@ import math.geom2d.Vector2D;
 import android.graphics.Point;
 
 public class Asteroid {
-	public static final int MAX_RADIUS = 65;
 	public static final int MAX_DAMAGE = 20;
 	public static final int MAX_HEALTH = 20;
 	public static final int MAX_SPEED = 800;
 	public static final int MIN_SPEED = 200;
 	public static final int SEC_PER_ROTATE = 2;
+	
+	private static int max_radius = 65;
 
 	private Point pos = new Point(0, 0), initPos = new Point(0, 0);
 	private double heading = 0.0, speed = 0.0, radius = 0.0, rotate = 0.0;
@@ -20,7 +21,7 @@ public class Asteroid {
 	public Asteroid(Point p) { pos = p; }
     
     public int getDamage() {
-    	return (int)(MAX_DAMAGE*(getRadius()/MAX_RADIUS)); 
+    	return (int)(MAX_DAMAGE*(getRadius()/Asteroid.getMaxRadius())); 
     }
     
     public Point getNextPos() {
@@ -44,6 +45,14 @@ public class Asteroid {
     }
 	
 	// accessors / mutators	
+    public static int getMaxRadius() {
+    	return max_radius;
+    }
+    
+    public static void setMaxRadius(int max) {
+    	max_radius = max;
+    }
+    
     public boolean isBounced() {
     	return isBounced;
     }
