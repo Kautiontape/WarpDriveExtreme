@@ -322,12 +322,12 @@ public class GameThread extends Thread {
         canvas.drawText(retry, (canvasWidth / 2) - p.measureText(retry) / 2, canvasHeight - timeFontSize - 10.0f, p);
     }
     
-    public boolean isCreateAsteroidTime() {
+    private boolean isCreateAsteroidTime() {
     	if(time < 1) return false;
     	return ((frame % (int)(FRAMES_PER_SECOND * (15.0 / time))) == 0);
     }
     
-    public void createAsteroid() {
+    private void createAsteroid() {
     	double radius = Math.min(0.5 + Math.random()*Asteroid.getMaxRadius(), Asteroid.getMaxRadius());
     	int startX = (int)(Math.random() * (canvasWidth + 1));
     	int startY = (int)-radius;
@@ -342,7 +342,7 @@ public class GameThread extends Thread {
     	asteroids.add(a);
     }
     
-    public void moveAsteroids() {
+    private void moveAsteroids() {
     	ArrayList<Asteroid> deleteAsteroid = new ArrayList<Asteroid>();
     	for(Asteroid a : asteroids) {
     		if(deleteAsteroid.contains(a)) continue;
@@ -501,6 +501,10 @@ public class GameThread extends Thread {
 
 	public void setRunning(boolean b) {
 		this.running = b;
+	}
+	
+	public boolean isRunning() {
+		return this.running;
 	}
 	
 	private void addEnergy(int gain) {

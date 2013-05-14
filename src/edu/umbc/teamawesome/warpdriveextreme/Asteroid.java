@@ -6,7 +6,7 @@ import android.graphics.Point;
 public class Asteroid {
 	public static final int MAX_DAMAGE = 20;
 	public static final int MAX_HEALTH = 20;
-	public static final int MAX_SPEED = 800;
+	public static final int MAX_SPEED = 600;
 	public static final int MIN_SPEED = 200;
 	public static final int SEC_PER_ROTATE = 2;
 	
